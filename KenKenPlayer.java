@@ -179,7 +179,7 @@ public class KenKenPlayer
                     }
                 }
             } else { //constraintType == "math"
-
+                boolean revised = ReviseMath(current_arc, Domains);
             }
             
         }
@@ -202,8 +202,24 @@ public class KenKenPlayer
         }       
  	}
 
-    private final boolean ReviseMath(Arc t, ArrayList<Integer> Domains){
-        
+    private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+        ArrayList<Integer> box_cells = t.cells;
+        switch(t.operator){
+            case '+':
+
+                break;
+            case '-':
+
+                break;
+            case '*':
+
+                break;
+            case '/':
+
+                break;
+        }
+        return revised;
     }
 
     private void Finished(boolean success){
