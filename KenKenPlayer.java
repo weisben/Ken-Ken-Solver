@@ -9,9 +9,9 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final int PUZZLE_SIZE = 3;
+    private final int PUZZLE_SIZE = 4;
     private final int NUM_CELLS = PUZZLE_SIZE * PUZZLE_SIZE;
-    private final String difficulty = "add-only";
+    private final String difficulty = "add-only4";
 
     Cell[] cells = new Cell[NUM_CELLS];
     
@@ -33,7 +33,11 @@ public class KenKenPlayer
 
         initGlobalDomains(); // initialize domains for each cell
 
-        allDiff(); // initializes neighbors and globalQueue        
+        allDiff(); // initializes neighbors and globalQueue   
+        
+        for(Arc a: globalQueue){
+            System.out.println(a);
+        }
 
         // Initial call to backtrack() on cell 0 (top left)
         boolean success = backtrack(0,globalDomains);
@@ -83,8 +87,16 @@ public class KenKenPlayer
 
         for (Arithmetic box: regions){      
             if(box.operator != '#'){
-                Arc group = new Arc(box.cells, box.target, box.operator);
-                globalQueue.add(group);
+                for(int i = 0; i < box.cells.size(); i++){
+                    int cell = box.cells.get(i);
+                    ArrayList<Integer> neighbors = new ArrayList<Integer>();
+                    for(int j = 0; j < box.cells.size(); j++){
+                        if(i!=j) neighbors.add(box.cells.get(j));
+                    }
+                    Arc group = new Arc(cell, neighbors, box.target, box.operator);
+                    globalQueue.add(group);
+                }
+                
             } else {
                 int cell_num = box.cells.get(0);
                 globalDomains[cell_num].clear();
@@ -161,8 +173,8 @@ public class KenKenPlayer
             Arc current_arc = Q.poll();
 
             if(current_arc.constraintType == "diff"){
-                int Xi = current_arc.cells.get(0);
-                int Xj = current_arc.cells.get(1);
+                int Xi = current_arc.cell_num;
+                int Xj = current_arc.neighbors.get(0);
 
                 boolean revised = ReviseDiff(current_arc, Domains);
                 
@@ -189,6 +201,10 @@ public class KenKenPlayer
                 }
             } else { //constraintType == "math"
                 boolean revised = ReviseMath(current_arc, Domains);
+                if(!revised) continue; // if the domain wasn't revised move to the next arc
+                if (Domains[current_arc.cell_num].isEmpty()){ // an inconsistency was found
+                    return false;
+                }
             }
             
         }
@@ -198,8 +214,8 @@ public class KenKenPlayer
 
     private final boolean ReviseDiff(Arc t, ArrayList<Integer>[] Domains){
         // extract endpoints of arc
-        int Xi = t.cells.get(0);
-        int Xj = t.cells.get(1);
+        int Xi = t.cell_num;
+        int Xj = t.neighbors.get(0);
 
         // Domain of Xi needs to be revised only if the domain of Xj is a
         // singular value which is contained in the domain of Xi
@@ -213,31 +229,52 @@ public class KenKenPlayer
 
     private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
         boolean revised = false;
-
+        ArrayList<Integer> dom = Domains[t.cell_num];
         switch(t.operator){
             case '+':
                 int sum = 0;
-                for(int i: t.cells){
-                    sum += cells[i].val;
+                for(int i: t.neighbors){
+                    sum += min(Domains[i]);
                 }
-                
+                for(int i=0; i<dom.size(); i++){
+                    if(dom.get(i) + sum > t.target){
+                        dom.remove(i);
+                        revised = true;
+                    }
+                }
                 break;
             case '-':
 
                 break;
             case '*':
-
+                int prod = 1;
+                for(int i: t.neighbors){
+                    prod *= min(Domains[i]);
+                }
+                for(int i=0; i<dom.size(); i++){
+                    if(dom.get(i) * prod > t.target){
+                        dom.remove(i);
+                        revised = true;
+                    }
+                }
                 break;
             case '/':
 
                 break;
-            default: //no operation
-                int i = t.cells.get(0);
-                
-                cells[i].val = t.target;
-                break;
         }
         return revised;
+    }
+
+    private int min(ArrayList<Integer> L){
+        // int min_index = -1;
+        int min_value = PUZZLE_SIZE;
+        for(int i=0; i<L.size(); i++){
+            if(L.get(i) < min_value){
+                min_value = L.get(i);
+                // min_index = i;
+            }
+        }  
+        return min_value; 
     }
 
     private void Finished(boolean success){
@@ -298,7 +335,8 @@ public class KenKenPlayer
     }
 
     class Arc implements Comparable<Object>{
-        ArrayList<Integer> cells;
+        int cell_num;
+        ArrayList<Integer> neighbors;
         int target;
         char operator;
         String constraintType;
@@ -312,14 +350,16 @@ public class KenKenPlayer
                     System.exit(1);
                 }
             }
-            this.cells = new ArrayList<Integer>(Arrays.asList(cell_i, cell_j));
+            this.cell_num = cell_i;
+            this.neighbors = new ArrayList<Integer>(Arrays.asList(cell_j));
             constraintType = "diff";
         }
 
-        public Arc(ArrayList<Integer> cells, int target, char operator){
+        public Arc(int cell, ArrayList<Integer> neighbors, int target, char operator){
             this.target = target;
             this.operator = operator;
-            this.cells = cells;
+            this.cell_num = cell;
+            this.neighbors = neighbors;
             constraintType = "math";
         }
 
@@ -328,7 +368,7 @@ public class KenKenPlayer
         }
 
         public String toString(){
-            return this.cells.toString();
+            return "(" + cell_num + "->" + neighbors + ")";
         }
     }
 
@@ -345,12 +385,21 @@ public class KenKenPlayer
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(5,8))));
                 regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
                 break;
-            case "add-only":
-                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(0))));
-                regions.add(new Arithmetic(3, '+', new ArrayList<Integer>(Arrays.asList(1,2))));
-                regions.add(new Arithmetic(6, '+', new ArrayList<Integer>(Arrays.asList(3,6,7))));
-                regions.add(new Arithmetic(5, '+', new ArrayList<Integer>(Arrays.asList(4,5))));
-                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(8))));
+            case "add-only3":
+                regions.add(new Arithmetic(3, '+', new ArrayList<Integer>(Arrays.asList(0,1))));
+                regions.add(new Arithmetic(4, '+', new ArrayList<Integer>(Arrays.asList(2,5))));
+                regions.add(new Arithmetic(4, '+', new ArrayList<Integer>(Arrays.asList(3,6))));
+                regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(4,7,8))));
+                break;
+            case "add-only4":
+                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(0))));
+                regions.add(new Arithmetic(4, new ArrayList<Integer>(Arrays.asList(15))));
+                regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(1,5))));
+                regions.add(new Arithmetic(5, '+', new ArrayList<Integer>(Arrays.asList(2,3))));
+                regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(4,8))));
+                regions.add(new Arithmetic(3, '+', new ArrayList<Integer>(Arrays.asList(6,7))));
+                regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(9,10,11))));
+                regions.add(new Arithmetic(6, '+', new ArrayList<Integer>(Arrays.asList(12,13,14))));
                 break;
             case "trivial":
                 regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(0))));
