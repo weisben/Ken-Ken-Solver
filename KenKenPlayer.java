@@ -12,18 +12,17 @@ public class KenKenPlayer
     private final int PUZZLE_SIZE = 3;
     private final int NUM_CELLS = PUZZLE_SIZE * PUZZLE_SIZE;
 
-    // final values must be assigned in vals[][]
-    int[][] vals = new int[PUZZLE_SIZE][PUZZLE_SIZE];
     Cell[] cells = new Cell[NUM_CELLS];
-    ArrayList<Arithmetic> regions = new ArrayList<Arithmetic>();
+    
     //Board board = null;
 
 
-        /// --- AC-3 Constraint Satisfication --- ///
+    /// --- AC-3 Constraint Satisfication --- ///
    
 
     ArrayList<Integer>[] globalDomains = new ArrayList[NUM_CELLS];
     ArrayList<Integer>[] neighbors = new ArrayList[NUM_CELLS];
+    ArrayList<Arithmetic> regions = new ArrayList<Arithmetic>();
     Queue<Arc> globalQueue = new LinkedList<Arc>();
 
 
@@ -89,26 +88,21 @@ public class KenKenPlayer
             
             //use neighbors to create arcs and initialize global queue
             for (int k: neighbors[i]){
-                Arc pair = new Arc(i, k, "diff");
+                Arc pair = new Arc(i, k);
                 globalQueue.add(pair);
             }
         }
 
-        for (Arithmetic box: regions){
-            ArrayList<Integer> box_cells = box.cells;
-            
-            
+        for (Arithmetic box: regions){          
+            Arc group = new Arc(box.cells, box.target, box.operator);
+            globalQueue.add(group);
         }
     }
     
-    private final boolean backtrack(int cell, ArrayList<Integer>[] Domains) {
-
-        if (cell >= NUM_CELLS){ // found a solution for the board
+    private final boolean backtrack(int cell_num, ArrayList<Integer>[] Domains) {
+        if (cell_num >= NUM_CELLS){ // found a solution for the board
             return true;
         }
-
-        int row = cell / PUZZLE_SIZE;
-        int col = cell % PUZZLE_SIZE;
 
         // make a copy of domains so we don't modify global domains
         ArrayList<Integer>[] domain_copy = new ArrayList[81];
@@ -123,22 +117,22 @@ public class KenKenPlayer
 
         // copy of cell's domain to be iterated through
         ArrayList<Integer> domain_values = new ArrayList<Integer>();
-        for(int val : domain_copy[cell]){
+        for(int val : domain_copy[cell_num]){
             domain_values.add(val);
         }
 
         // find a value for this cell
         for (int value : domain_values) {
             // assign a value to current cell
-            domain_copy[cell].clear();
-            domain_copy[cell].add(value);
+            domain_copy[cell_num].clear();
+            domain_copy[cell_num].add(value);
 
             // check if value works by recursively calling backtrack on next cell
-            boolean consistent = backtrack(cell + 1, domain_copy);
+            boolean consistent = backtrack(cell_num + 1, domain_copy);
 
             // if backtrack returns true, then all cells have worked, so assign the value
             if (consistent){
-                vals[row][col] = value; 
+                cells[cell_num].val = value; 
                 return true;
             }
         }
@@ -156,41 +150,47 @@ public class KenKenPlayer
         // iterate through queue until there are no more arcs to revise over
         while(!Q.isEmpty()){
             Arc current_arc = Q.poll();
-            int Xi = current_arc.Xi;
-            int Xj = current_arc.Xj;
 
-            boolean revised = Revise(current_arc, Domains);
-            
-            if(!revised) continue; // if the domain wasn't revised move to the next arc
-            if (Domains[Xi].isEmpty()){ // an inconsistency was found
-                return false;
-            }
-            // add other neighbors to queue
-            for (int k: neighbors[Xi]){
-                if (k != Xj){
-                    Arc neighbor = new Arc(k, Xi, "diff");
-                    boolean inQ = false;
-                    // check if the arc is already in queue
-                    for(Arc a : Q){ 
-                        if(a.compareTo(neighbor) == 0) {
-                            inQ = true;
-                            break;
+            if(current_arc.constraintType == "diff"){
+                int Xi = current_arc.cells.get(0);
+                int Xj = current_arc.cells.get(1);
+
+                boolean revised = ReviseDiff(current_arc, Domains);
+                
+                if(!revised) continue; // if the domain wasn't revised move to the next arc
+                if (Domains[Xi].isEmpty()){ // an inconsistency was found
+                    return false;
+                }
+                // add other neighbors to queue
+                for (int k: neighbors[Xi]){
+                    if (k != Xj){
+                        Arc neighbor = new Arc(k, Xi);
+                        boolean inQ = false;
+                        // check if the arc is already in queue
+                        for(Arc a : Q){ 
+                            if(a.compareTo(neighbor) == 0) {
+                                inQ = true;
+                                break;
+                            }
+                        }
+                        if (!inQ){ //add the arc if it was not already in the queue
+                            Q.add(neighbor);
                         }
                     }
-                    if (!inQ){ //add the arc if it was not already in the queue
-                        Q.add(neighbor);
-                    }
                 }
+            } else { //constraintType == "math"
+
             }
+            
         }
         
 		return true;
     }
 
-    private final boolean Revise(Arc t, ArrayList<Integer>[] Domains){
+    private final boolean ReviseDiff(Arc t, ArrayList<Integer>[] Domains){
         // extract endpoints of arc
-    	int Xi = t.Xi;
-        int Xj = t.Xj;
+        int Xi = t.cells.get(0);
+        int Xj = t.cells.get(1);
 
         // Domain of Xi needs to be revised only if the domain of Xj is a
         // singular value which is contained in the domain of Xi
@@ -199,19 +199,29 @@ public class KenKenPlayer
             return true; 
         } else {
             return false;
-        }
+        }       
  	}
+
+    private final boolean ReviseMath(Arc t, ArrayList<Integer> Domains){
+        
+    }
 
     private void Finished(boolean success){
     	
     	if(success){
-            for(int i=0; i<NUM_CELLS; i++){
-                int row = i / PUZZLE_SIZE;
-                int col = i % PUZZLE_SIZE;
-                System.out.println(vals[row][col]);
-            }
+            printBoard();
         } else {
             System.out.println("Failed");
+        }
+    }
+
+    private void printBoard(){
+        for(int i=0; i<PUZZLE_SIZE; i++){
+            for(int j=0; j<PUZZLE_SIZE; j++){
+                int cellNum = i * PUZZLE_SIZE + j;
+                System.out.print(cells[cellNum].val);
+            }
+            System.out.println();
         }
     }
 
@@ -253,9 +263,12 @@ public class KenKenPlayer
     }
 
     class Arc implements Comparable<Object>{
-        int Xi, Xj;
+        ArrayList<Integer> cells;
+        int target;
+        char operator;
         String constraintType;
-        public Arc(int cell_i, int cell_j, String constraint_type){
+
+        public Arc(int cell_i, int cell_j){
             if (cell_i == cell_j){
                 try {
                     throw new Exception(cell_i+ "=" + cell_j);
@@ -264,9 +277,15 @@ public class KenKenPlayer
                     System.exit(1);
                 }
             }
-            Xi = cell_i;
-            Xj = cell_j;
-            constraintType = constraint_type;
+            this.cells = new ArrayList<Integer>(Arrays.asList(cell_i, cell_j));
+            constraintType = "diff";
+        }
+
+        public Arc(ArrayList<Integer> cells, int target, char operator){
+            this.target = target;
+            this.operator = operator;
+            this.cells = cells;
+            constraintType = "math";
         }
 
         public int compareTo(Object o){
@@ -274,14 +293,14 @@ public class KenKenPlayer
         }
 
         public String toString(){
-            return "(" + Xi + "," + Xj + ")";
+            return this.cells.toString();
         }
     }
 
     public final void initialize(){
-        vals[0] = new int[] {0,0,0};
-        vals[1] = new int[] {0,0,0};
-        vals[2] = new int[] {0,0,0};
+        for(int cell_num = 0; cell_num < NUM_CELLS; cell_num++){
+            cells[cell_num] = new Cell(cell_num, 0);
+        }
         
         regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,3))));
         regions.add(new Arithmetic(6, 'x', new ArrayList<Integer>(Arrays.asList(1,2))));
@@ -298,6 +317,7 @@ public class KenKenPlayer
     }
     
     public void run(){
+        initialize();
         AC3Init();
     }
 
