@@ -11,6 +11,7 @@ public class KenKenPlayer
 {
     private final int PUZZLE_SIZE = 3;
     private final int NUM_CELLS = PUZZLE_SIZE * PUZZLE_SIZE;
+    private final String difficulty = "add-only";
 
     Cell[] cells = new Cell[NUM_CELLS];
     
@@ -30,9 +31,9 @@ public class KenKenPlayer
         // board.Clear();
 		// recursions = 0; 
 
-        allDiff(); // initializes neighbors and globalQueue
-
         initGlobalDomains(); // initialize domains for each cell
+
+        allDiff(); // initializes neighbors and globalQueue        
 
         // Initial call to backtrack() on cell 0 (top left)
         boolean success = backtrack(0,globalDomains);
@@ -44,19 +45,6 @@ public class KenKenPlayer
          */
         Finished(success);
 
-    }
-
-    /**
-     * This method sets up the global domains for all cells
-     */
-    private void initGlobalDomains(){
-        
-        for (int i = 0; i < NUM_CELLS; i++){
-            globalDomains[i] = new ArrayList<Integer>();
-            for(int j = 1; j <= PUZZLE_SIZE; j++){
-                globalDomains[i].add(j);
-            }
-        }
     }
 
     /*
@@ -93,11 +81,32 @@ public class KenKenPlayer
             }
         }
 
-        for (Arithmetic box: regions){          
-            Arc group = new Arc(box.cells, box.target, box.operator);
-            globalQueue.add(group);
+        for (Arithmetic box: regions){      
+            if(box.operator != '#'){
+                Arc group = new Arc(box.cells, box.target, box.operator);
+                globalQueue.add(group);
+            } else {
+                int cell_num = box.cells.get(0);
+                globalDomains[cell_num].clear();
+                globalDomains[cell_num].add(box.target);
+            }
         }
     }
+
+
+    /**
+     * This method sets up the global domains for all cells
+     */
+    private void initGlobalDomains(){
+        for (int i = 0; i < NUM_CELLS; i++){
+            globalDomains[i] = new ArrayList<Integer>();
+            for(int j = 1; j <= PUZZLE_SIZE; j++){
+                globalDomains[i].add(j);
+            }
+        }
+    }
+
+    
     
     private final boolean backtrack(int cell_num, ArrayList<Integer>[] Domains) {
         if (cell_num >= NUM_CELLS){ // found a solution for the board
@@ -204,10 +213,14 @@ public class KenKenPlayer
 
     private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
         boolean revised = false;
-        ArrayList<Integer> box_cells = t.cells;
+
         switch(t.operator){
             case '+':
-
+                int sum = 0;
+                for(int i: t.cells){
+                    sum += cells[i].val;
+                }
+                
                 break;
             case '-':
 
@@ -217,6 +230,11 @@ public class KenKenPlayer
                 break;
             case '/':
 
+                break;
+            default: //no operation
+                int i = t.cells.get(0);
+                
+                cells[i].val = t.target;
                 break;
         }
         return revised;
@@ -275,6 +293,7 @@ public class KenKenPlayer
         public Arithmetic(int target, ArrayList<Integer> cells){
             this.target = target;
             this.cells = cells;
+            this.operator = '#';
         }
     }
 
@@ -313,17 +332,44 @@ public class KenKenPlayer
         }
     }
 
-    public final void initialize(){
+    public final void initialize(String difficulty){
         for(int cell_num = 0; cell_num < NUM_CELLS; cell_num++){
             cells[cell_num] = new Cell(cell_num, 0);
         }
         
-        regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,3))));
-        regions.add(new Arithmetic(6, 'x', new ArrayList<Integer>(Arrays.asList(1,2))));
-        regions.add(new Arithmetic(3, '/', new ArrayList<Integer>(Arrays.asList(4,7))));
-        regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(5,8))));
-        regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
+        switch(difficulty){
+            case "3x3":
+                regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,3))));
+                regions.add(new Arithmetic(6, 'x', new ArrayList<Integer>(Arrays.asList(1,2))));
+                regions.add(new Arithmetic(3, '/', new ArrayList<Integer>(Arrays.asList(4,7))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(5,8))));
+                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
+                break;
+            case "add-only":
+                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(0))));
+                regions.add(new Arithmetic(3, '+', new ArrayList<Integer>(Arrays.asList(1,2))));
+                regions.add(new Arithmetic(6, '+', new ArrayList<Integer>(Arrays.asList(3,6,7))));
+                regions.add(new Arithmetic(5, '+', new ArrayList<Integer>(Arrays.asList(4,5))));
+                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(8))));
+                break;
+            case "trivial":
+                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(0))));
+                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(1))));
+                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(2))));
+                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(3))));
+                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(4))));
+                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(5))));
+                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
+                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(7))));
+                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(8))));
+                break;
+            default:
+                System.out.println("Invalid difficulty selected.");
+        }
         
+        
+
+
         for (Arithmetic box: regions){
             ArrayList<Integer> box_cells = box.cells;
             for (int i: box_cells){
@@ -333,7 +379,7 @@ public class KenKenPlayer
     }
     
     public void run(){
-        initialize();
+        initialize(difficulty);
         AC3Init();
     }
 
