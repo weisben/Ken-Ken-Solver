@@ -9,7 +9,7 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final String difficulty = "add-4";
+    private final String difficulty = "all-op-5";
 
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
@@ -29,9 +29,9 @@ public class KenKenPlayer
     Queue<Arc> globalQueue = new LinkedList<Arc>();
 
 
-    private void setPuzzleSize(int s){
-        PUZZLE_SIZE = s;
-        NUM_CELLS = s * s;
+    private void setPuzzleSize(int dim){
+        PUZZLE_SIZE = dim;
+        NUM_CELLS = dim * dim;
         vals = new int[NUM_CELLS];
         globalDomains = new ArrayList[NUM_CELLS];
         neighbors = new ArrayList[NUM_CELLS];
@@ -240,77 +240,109 @@ public class KenKenPlayer
  	}
 
     private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
-        boolean revised = false;
-        ArrayList<Integer> dom = Domains[t.cell];
-        int neighbor;
-        ArrayList<Integer> neighborDom;
-
         switch(t.operator){
             case '+':
-                int min_sum = 0;
-                int max_sum = 0;
-                for(int i: t.neighbors){
-                    min_sum += min(Domains[i]);
-                    max_sum += max(Domains[i]);
-                }
-                for(int i=0; i<dom.size(); i++){
-                    if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
-                        dom.remove(i);
-                        revised = true;
-                    }
-                }
-                break;
+                return ReviseAdd(t, Domains);
             case '-':
-                neighbor = t.neighbors.get(0);
-                neighborDom = Domains[neighbor];
-                for(int i=0; i<dom.size(); i++){
-                    int val1 = dom.get(i);
-                    boolean works = false;
-                    for(int j=0; j<neighborDom.size(); j++){
-                        int val2 = neighborDom.get(j);
-                        if(Math.abs(val1 - val2) == t.target){
-                            works = true;
-                        }
-                    }
-                    if(!works){
-                        dom.remove(i);
-                        revised = true;
-                    }
-                }
-                break;
+                return ReviseSub(t, Domains);
             case '*':
-                int min_prod = 1;
-                int max_prod = 1;
-                for(int i: t.neighbors){
-                    min_prod *= min(Domains[i]);
-                    max_prod *= max(Domains[i]);
-                }
-                for(int i=0; i<dom.size(); i++){
-                    if(dom.get(i) * min_prod > t.target || dom.get(i) * max_prod < t.target){
-                        dom.remove(i);
-                        revised = true;
-                    }
-                }
-                break;
+                return ReviseMul(t, Domains);
             case '/':
-                neighbor = t.neighbors.get(0);
-                neighborDom = Domains[neighbor];
-                for(int i=0; i<dom.size(); i++){
-                    int val1 = dom.get(i);
-                    boolean works = false;
-                    for(int j=0; j<neighborDom.size(); j++){
-                        int val2 = neighborDom.get(j);
-                        if(val1 / val2 == t.target || val2 / val1 == t.target){
-                            works = true;
-                        }
-                    }
-                    if(!works){
-                        dom.remove(i);
-                        revised = true;
-                    }
-                }
-                break;
+                return ReviseDiv(t, Domains);
+            default:
+                System.out.println("Invalid operator");
+                return false;
         }
+    }
+
+    private final boolean ReviseAdd(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+
+        int min_sum = 0;
+        int max_sum = 0;
+        for(int i: t.neighbors){
+            min_sum += min(Domains[i]);
+            max_sum += max(Domains[i]);
+        }
+        for(int i=0; i<dom.size(); i++){
+            if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    private final boolean ReviseSub(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+        int neighbor = t.neighbors.get(0);
+        ArrayList<Integer> neighborDom = Domains[neighbor];
+
+        for(int i=0; i<dom.size(); i++){
+            int val1 = dom.get(i);
+            boolean works = false;
+            for(int j=0; j<neighborDom.size(); j++){
+                int val2 = neighborDom.get(j);
+                if(Math.abs(val1 - val2) == t.target){
+                    works = true;
+                }
+            }
+            if(!works){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    private final boolean ReviseMul(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+
+        int min_prod = 1;
+        int max_prod = 1;
+        for(int i: t.neighbors){
+            min_prod *= min(Domains[i]);
+            max_prod *= max(Domains[i]);
+        }
+        for(int i=0; i<dom.size(); i++){
+            if(dom.get(i) * min_prod > t.target || dom.get(i) * max_prod < t.target){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    private final boolean ReviseDiv(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+        int neighbor = t.neighbors.get(0);
+        ArrayList<Integer> neighborDom = Domains[neighbor];
+        for(int i=0; i<dom.size(); i++){
+            int val1 = dom.get(i);
+            boolean works = false;
+            for(int j=0; j<neighborDom.size(); j++){
+                int val2 = neighborDom.get(j);
+                if(val1 / val2 == t.target || val2 / val1 == t.target){
+                    works = true;
+                }
+            }
+            if(!works){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
         return revised;
     }
 
