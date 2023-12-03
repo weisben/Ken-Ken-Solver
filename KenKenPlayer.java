@@ -9,14 +9,13 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final String difficulty = "all-op-5";
+    private final String difficulty = "add-4";
 
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
 
     int recursions;
-
-    Cell[] cells;
+    int[] vals;
     
     //Board board = null;
 
@@ -33,7 +32,7 @@ public class KenKenPlayer
     private void setPuzzleSize(int s){
         PUZZLE_SIZE = s;
         NUM_CELLS = s * s;
-        cells = new Cell[NUM_CELLS];
+        vals = new int[NUM_CELLS];
         globalDomains = new ArrayList[NUM_CELLS];
         neighbors = new ArrayList[NUM_CELLS];
     }
@@ -106,9 +105,9 @@ public class KenKenPlayer
                 }
                 
             } else {
-                int cell_num = box.cells.get(0);
-                globalDomains[cell_num].clear();
-                globalDomains[cell_num].add(box.target);
+                int cell = box.cells.get(0);
+                globalDomains[cell].clear();
+                globalDomains[cell].add(box.target);
             }
         }
     }
@@ -128,9 +127,9 @@ public class KenKenPlayer
 
     
     
-    private final boolean backtrack(int cell_num, ArrayList<Integer>[] Domains) {
+    private final boolean backtrack(int cell, ArrayList<Integer>[] Domains) {
         recursions++;
-        if (cell_num >= NUM_CELLS){ // found a solution for the board
+        if (cell >= NUM_CELLS){ // found a solution for the board
             return true;
         }
 
@@ -147,22 +146,22 @@ public class KenKenPlayer
 
         // copy of cell's domain to be iterated through
         ArrayList<Integer> domain_values = new ArrayList<Integer>();
-        for(int val : domain_copy[cell_num]){
+        for(int val : domain_copy[cell]){
             domain_values.add(val);
         }
 
         // find a value for this cell
         for (int value : domain_values) {
             // assign a value to current cell
-            domain_copy[cell_num].clear();
-            domain_copy[cell_num].add(value);
+            domain_copy[cell].clear();
+            domain_copy[cell].add(value);
 
             // check if value works by recursively calling backtrack on next cell
-            boolean consistent = backtrack(cell_num + 1, domain_copy);
+            boolean consistent = backtrack(cell + 1, domain_copy);
 
             // if backtrack returns true, then all cells have worked, so assign the value
             if (consistent){
-                cells[cell_num].val = value; 
+                vals[cell] = value; 
                 return true;
             }
         }
@@ -184,7 +183,7 @@ public class KenKenPlayer
             boolean revised = Revise(current_arc, Domains);
                 
             if(!revised) continue; // if the domain wasn't revised move to the next arc
-            if (Domains[current_arc.cell_num].isEmpty()){ // an inconsistency was found
+            if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
                 return false;
             }
                 // add other neighbors to queue
@@ -227,7 +226,7 @@ public class KenKenPlayer
 
     private final boolean ReviseDiff(Arc t, ArrayList<Integer>[] Domains){
         // extract endpoints of arc
-        int Xi = t.cell_num;
+        int Xi = t.cell;
         int Xj = t.neighbors.get(0);
 
         // Domain of Xi needs to be revised only if the domain of Xj is a
@@ -242,7 +241,7 @@ public class KenKenPlayer
 
     private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
         boolean revised = false;
-        ArrayList<Integer> dom = Domains[t.cell_num];
+        ArrayList<Integer> dom = Domains[t.cell];
         int neighbor;
         ArrayList<Integer> neighborDom;
 
@@ -353,30 +352,10 @@ public class KenKenPlayer
         for(int i=0; i<PUZZLE_SIZE; i++){
             for(int j=0; j<PUZZLE_SIZE; j++){
                 int cellNum = i * PUZZLE_SIZE + j;
-                System.out.print(cells[cellNum].val);
+                System.out.print(vals[cellNum]);
             }
             System.out.println();
         }
-    }
-
-    class Cell {
-        int cell_num;
-        int val;
-        Arithmetic arithmetic_box;
-
-        public Cell(int cell_num, int val){
-            this.cell_num = cell_num;
-            this.val = val;
-        }
-        
-        public void setArithmeticBox(Arithmetic box) {
-            this.arithmetic_box = box;
-        }
-
-         public Arithmetic getArithmeticBox(){
-            return this.arithmetic_box;
-        }
-        
     }
 
     class Arithmetic {
@@ -398,7 +377,7 @@ public class KenKenPlayer
     }
 
     class Arc implements Comparable<Object>{
-        int cell_num;
+        int cell;
         ArrayList<Integer> neighbors;
         int target;
         char operator;
@@ -413,7 +392,7 @@ public class KenKenPlayer
                     System.exit(1);
                 }
             }
-            this.cell_num = cell_i;
+            this.cell = cell_i;
             this.neighbors = new ArrayList<Integer>(Arrays.asList(cell_j));
             constraintType = "diff";
         }
@@ -421,7 +400,7 @@ public class KenKenPlayer
         public Arc(int cell, ArrayList<Integer> neighbors, int target, char operator){
             this.target = target;
             this.operator = operator;
-            this.cell_num = cell;
+            this.cell = cell;
             this.neighbors = neighbors;
             constraintType = "math";
         }
@@ -431,7 +410,7 @@ public class KenKenPlayer
         }
 
         public String toString(){
-            return "(" + cell_num + "->" + neighbors + ")";
+            return "(" + cell + "->" + neighbors + ")";
         }
     }
 
@@ -513,16 +492,8 @@ public class KenKenPlayer
         }
         
         // INIT CELLS
-        for(int cell_num = 0; cell_num < NUM_CELLS; cell_num++){
-            cells[cell_num] = new Cell(cell_num, 0);
-        }
-
-        // SET CELL BOXES
-        for (Arithmetic box: regions){
-            ArrayList<Integer> box_cells = box.cells;
-            for (int i: box_cells){
-                cells[i].setArithmeticBox(box);
-            }
+        for(int cell = 0; cell < NUM_CELLS; cell++){
+            vals[cell] = 0;
         }
     }
     
