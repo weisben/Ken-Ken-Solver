@@ -9,7 +9,7 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final String difficulty = "all-op-5";
+    private final String difficulty = "all-op-9";
 
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
@@ -507,17 +507,40 @@ public class KenKenPlayer
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(20,21))));
                 regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(23,24))));
                 break;
-            case "trivial":
-                setPuzzleSize(3);
-                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(0))));
-                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(1))));
-                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(2))));
-                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(3))));
-                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(4))));
-                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(5))));
-                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
-                regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(7))));
-                regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(8))));
+            case "all-op-9":
+                setPuzzleSize(9);
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(0,1))));
+                regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(2,3))));
+                regions.add(new Arithmetic(336, '*', new ArrayList<Integer>(Arrays.asList(4,5,14))));
+                regions.add(new Arithmetic(19, '+', new ArrayList<Integer>(Arrays.asList(6,15,16,17))));
+                regions.add(new Arithmetic(3, '/', new ArrayList<Integer>(Arrays.asList(7,8))));
+                regions.add(new Arithmetic(14, '+', new ArrayList<Integer>(Arrays.asList(9,18,27))));
+                regions.add(new Arithmetic(16, '+', new ArrayList<Integer>(Arrays.asList(10,19))));
+                regions.add(new Arithmetic(720, '*', new ArrayList<Integer>(Arrays.asList(11,20,28,29))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(12,13))));
+                regions.add(new Arithmetic(10, '+', new ArrayList<Integer>(Arrays.asList(21,22,23))));
+                regions.add(new Arithmetic(80, '*', new ArrayList<Integer>(Arrays.asList(24,25,34))));
+                regions.add(new Arithmetic(8, '-', new ArrayList<Integer>(Arrays.asList(26,35))));
+                regions.add(new Arithmetic(7, '-', new ArrayList<Integer>(Arrays.asList(30,31))));
+                regions.add(new Arithmetic(1920, '*', new ArrayList<Integer>(Arrays.asList(32,33,42,50,51))));
+                regions.add(new Arithmetic(9, new ArrayList<Integer>(Arrays.asList(36))));
+                regions.add(new Arithmetic(5, '+', new ArrayList<Integer>(Arrays.asList(37,38))));
+                regions.add(new Arithmetic(17, '+', new ArrayList<Integer>(Arrays.asList(39,40,41))));
+                regions.add(new Arithmetic(9, '+', new ArrayList<Integer>(Arrays.asList(43,44))));
+                regions.add(new Arithmetic(14, '+', new ArrayList<Integer>(Arrays.asList(45,54,63))));
+                regions.add(new Arithmetic(8, '-', new ArrayList<Integer>(Arrays.asList(46,47))));
+                regions.add(new Arithmetic(8, '+', new ArrayList<Integer>(Arrays.asList(48,49))));
+                regions.add(new Arithmetic(108, '*', new ArrayList<Integer>(Arrays.asList(52,60,61))));
+                regions.add(new Arithmetic(3, '-', new ArrayList<Integer>(Arrays.asList(53,62))));
+                regions.add(new Arithmetic(6, '-', new ArrayList<Integer>(Arrays.asList(55,64))));
+                regions.add(new Arithmetic(42, '*', new ArrayList<Integer>(Arrays.asList(56,65))));
+                regions.add(new Arithmetic(20, '+', new ArrayList<Integer>(Arrays.asList(57,58,59))));
+                regions.add(new Arithmetic(8, '-', new ArrayList<Integer>(Arrays.asList(66,67))));
+                regions.add(new Arithmetic(216, '*', new ArrayList<Integer>(Arrays.asList(68,76,77))));
+                regions.add(new Arithmetic(12, '+', new ArrayList<Integer>(Arrays.asList(69,70,71))));
+                regions.add(new Arithmetic(1, '-', new ArrayList<Integer>(Arrays.asList(72,73))));
+                regions.add(new Arithmetic(4, '/', new ArrayList<Integer>(Arrays.asList(74,75))));
+                regions.add(new Arithmetic(12, '+', new ArrayList<Integer>(Arrays.asList(78,79,80))));
                 break;
             default:
                 System.out.println("Invalid difficulty selected.");
