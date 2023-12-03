@@ -186,28 +186,22 @@ public class KenKenPlayer
             if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
                 return false;
             }
-                // add other neighbors to queue
-                // for (int k: neighbors[Xi]){
-                //     if (k != Xj){
-                //         Arc neighbor = new Arc(k, Xi);
-                //         boolean inQ = false;
-                //         // check if the arc is already in queue
-                //         for(Arc a : Q){ 
-                //             if(a.compareTo(neighbor) == 0) {
-                //                 inQ = true;
-                //                 break;
-                //             }
-                //         }
-                //         if (!inQ){ //add the arc if it was not already in the queue
-                //             Q.add(neighbor);
-                //         }
-                //     }
-                // }
-            // } else { //constraintType == "math"
-            //     boolean revised = ReviseMath(current_arc, Domains);
-            //     if(!revised) continue; // if the domain wasn't revised move to the next arc
-            //     if (Domains[current_arc.cell_num].isEmpty()){ // an inconsistency was found
-            //         return false;
+            //add other neighbors to queue
+            // int Xi = current_arc.cell;
+            // for (int k: neighbors[Xi]){
+            //     if (k != Xj){
+            //         Arc neighbor = new Arc(k, Xi);
+            //         boolean inQ = false;
+            //         // check if the arc is already in queue
+            //         for(Arc a : Q){ 
+            //             if(a.compareTo(neighbor) == 0) {
+            //                 inQ = true;
+            //                 break;
+            //             }
+            //         }
+            //         if (!inQ){ //add the arc if it was not already in the queue
+            //             Q.add(neighbor);
+            //         }
             //     }
             // }
             
@@ -313,7 +307,8 @@ public class KenKenPlayer
             max_prod *= max(Domains[i]);
         }
         for(int i=0; i<dom.size(); i++){
-            if(dom.get(i) * min_prod > t.target || dom.get(i) * max_prod < t.target){
+            int val = dom.get(i);
+            if(t.target % val != 0 || val * min_prod > t.target || val * max_prod < t.target){
                 dom.remove(i);
                 revised = true;
             }
@@ -453,7 +448,7 @@ public class KenKenPlayer
             case "3x3":
                 setPuzzleSize(3);
                 regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,3))));
-                regions.add(new Arithmetic(6, 'x', new ArrayList<Integer>(Arrays.asList(1,2))));
+                regions.add(new Arithmetic(6, '*', new ArrayList<Integer>(Arrays.asList(1,2))));
                 regions.add(new Arithmetic(3, '/', new ArrayList<Integer>(Arrays.asList(4,7))));
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(5,8))));
                 regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
