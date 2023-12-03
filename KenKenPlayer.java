@@ -9,11 +9,14 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final int PUZZLE_SIZE = 4;
-    private final int NUM_CELLS = PUZZLE_SIZE * PUZZLE_SIZE;
-    private final String difficulty = "add-only4";
+    private final String difficulty = "all-op-5";
 
-    Cell[] cells = new Cell[NUM_CELLS];
+    private int PUZZLE_SIZE;
+    private int NUM_CELLS;
+
+    int recursions;
+
+    Cell[] cells;
     
     //Board board = null;
 
@@ -21,23 +24,28 @@ public class KenKenPlayer
     /// --- AC-3 Constraint Satisfication --- ///
    
 
-    ArrayList<Integer>[] globalDomains = new ArrayList[NUM_CELLS];
-    ArrayList<Integer>[] neighbors = new ArrayList[NUM_CELLS];
+    ArrayList<Integer>[] globalDomains;
+    ArrayList<Integer>[] neighbors;
     ArrayList<Arithmetic> regions = new ArrayList<Arithmetic>();
     Queue<Arc> globalQueue = new LinkedList<Arc>();
 
 
+    private void setPuzzleSize(int s){
+        PUZZLE_SIZE = s;
+        NUM_CELLS = s * s;
+        cells = new Cell[NUM_CELLS];
+        globalDomains = new ArrayList[NUM_CELLS];
+        neighbors = new ArrayList[NUM_CELLS];
+    }
+
     private final void AC3Init(){
         // board.Clear();
-		// recursions = 0; 
+		recursions = 0; 
 
         initGlobalDomains(); // initialize domains for each cell
 
         allDiff(); // initializes neighbors and globalQueue   
         
-        for(Arc a: globalQueue){
-            System.out.println(a);
-        }
 
         // Initial call to backtrack() on cell 0 (top left)
         boolean success = backtrack(0,globalDomains);
@@ -121,6 +129,7 @@ public class KenKenPlayer
     
     
     private final boolean backtrack(int cell_num, ArrayList<Integer>[] Domains) {
+        recursions++;
         if (cell_num >= NUM_CELLS){ // found a solution for the board
             return true;
         }
@@ -172,44 +181,48 @@ public class KenKenPlayer
         while(!Q.isEmpty()){
             Arc current_arc = Q.poll();
 
-            if(current_arc.constraintType == "diff"){
-                int Xi = current_arc.cell_num;
-                int Xj = current_arc.neighbors.get(0);
-
-                boolean revised = ReviseDiff(current_arc, Domains);
+            boolean revised = Revise(current_arc, Domains);
                 
-                if(!revised) continue; // if the domain wasn't revised move to the next arc
-                if (Domains[Xi].isEmpty()){ // an inconsistency was found
-                    return false;
-                }
-                // add other neighbors to queue
-                for (int k: neighbors[Xi]){
-                    if (k != Xj){
-                        Arc neighbor = new Arc(k, Xi);
-                        boolean inQ = false;
-                        // check if the arc is already in queue
-                        for(Arc a : Q){ 
-                            if(a.compareTo(neighbor) == 0) {
-                                inQ = true;
-                                break;
-                            }
-                        }
-                        if (!inQ){ //add the arc if it was not already in the queue
-                            Q.add(neighbor);
-                        }
-                    }
-                }
-            } else { //constraintType == "math"
-                boolean revised = ReviseMath(current_arc, Domains);
-                if(!revised) continue; // if the domain wasn't revised move to the next arc
-                if (Domains[current_arc.cell_num].isEmpty()){ // an inconsistency was found
-                    return false;
-                }
+            if(!revised) continue; // if the domain wasn't revised move to the next arc
+            if (Domains[current_arc.cell_num].isEmpty()){ // an inconsistency was found
+                return false;
             }
+                // add other neighbors to queue
+                // for (int k: neighbors[Xi]){
+                //     if (k != Xj){
+                //         Arc neighbor = new Arc(k, Xi);
+                //         boolean inQ = false;
+                //         // check if the arc is already in queue
+                //         for(Arc a : Q){ 
+                //             if(a.compareTo(neighbor) == 0) {
+                //                 inQ = true;
+                //                 break;
+                //             }
+                //         }
+                //         if (!inQ){ //add the arc if it was not already in the queue
+                //             Q.add(neighbor);
+                //         }
+                //     }
+                // }
+            // } else { //constraintType == "math"
+            //     boolean revised = ReviseMath(current_arc, Domains);
+            //     if(!revised) continue; // if the domain wasn't revised move to the next arc
+            //     if (Domains[current_arc.cell_num].isEmpty()){ // an inconsistency was found
+            //         return false;
+            //     }
+            // }
             
         }
         
 		return true;
+    }
+
+    private final boolean Revise(Arc t, ArrayList<Integer>[] Domains){
+        if(t.constraintType == "diff"){
+            return ReviseDiff(t, Domains);
+        } else {
+            return ReviseMath(t, Domains);
+        }
     }
 
     private final boolean ReviseDiff(Arc t, ArrayList<Integer>[] Domains){
@@ -230,36 +243,73 @@ public class KenKenPlayer
     private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
         boolean revised = false;
         ArrayList<Integer> dom = Domains[t.cell_num];
+        int neighbor;
+        ArrayList<Integer> neighborDom;
+
         switch(t.operator){
             case '+':
-                int sum = 0;
+                int min_sum = 0;
+                int max_sum = 0;
                 for(int i: t.neighbors){
-                    sum += min(Domains[i]);
+                    min_sum += min(Domains[i]);
+                    max_sum += max(Domains[i]);
                 }
                 for(int i=0; i<dom.size(); i++){
-                    if(dom.get(i) + sum > t.target){
+                    if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
                         dom.remove(i);
                         revised = true;
                     }
                 }
                 break;
             case '-':
-
+                neighbor = t.neighbors.get(0);
+                neighborDom = Domains[neighbor];
+                for(int i=0; i<dom.size(); i++){
+                    int val1 = dom.get(i);
+                    boolean works = false;
+                    for(int j=0; j<neighborDom.size(); j++){
+                        int val2 = neighborDom.get(j);
+                        if(Math.abs(val1 - val2) == t.target){
+                            works = true;
+                        }
+                    }
+                    if(!works){
+                        dom.remove(i);
+                        revised = true;
+                    }
+                }
                 break;
             case '*':
-                int prod = 1;
+                int min_prod = 1;
+                int max_prod = 1;
                 for(int i: t.neighbors){
-                    prod *= min(Domains[i]);
+                    min_prod *= min(Domains[i]);
+                    max_prod *= max(Domains[i]);
                 }
                 for(int i=0; i<dom.size(); i++){
-                    if(dom.get(i) * prod > t.target){
+                    if(dom.get(i) * min_prod > t.target || dom.get(i) * max_prod < t.target){
                         dom.remove(i);
                         revised = true;
                     }
                 }
                 break;
             case '/':
-
+                neighbor = t.neighbors.get(0);
+                neighborDom = Domains[neighbor];
+                for(int i=0; i<dom.size(); i++){
+                    int val1 = dom.get(i);
+                    boolean works = false;
+                    for(int j=0; j<neighborDom.size(); j++){
+                        int val2 = neighborDom.get(j);
+                        if(val1 / val2 == t.target || val2 / val1 == t.target){
+                            works = true;
+                        }
+                    }
+                    if(!works){
+                        dom.remove(i);
+                        revised = true;
+                    }
+                }
                 break;
         }
         return revised;
@@ -277,6 +327,18 @@ public class KenKenPlayer
         return min_value; 
     }
 
+    private int max(ArrayList<Integer> L){
+        // int max_index = -1;
+        int max_value = 0;
+        for(int i=0; i<L.size(); i++){
+            if(L.get(i) > max_value){
+                max_value = L.get(i);
+                // max_index = i;
+            }
+        }  
+        return max_value; 
+    }
+
     private void Finished(boolean success){
     	
     	if(success){
@@ -284,6 +346,7 @@ public class KenKenPlayer
         } else {
             System.out.println("Failed");
         }
+        System.out.println("Recursions: "+recursions);
     }
 
     private void printBoard(){
@@ -372,26 +435,27 @@ public class KenKenPlayer
         }
     }
 
-    public final void initialize(String difficulty){
-        for(int cell_num = 0; cell_num < NUM_CELLS; cell_num++){
-            cells[cell_num] = new Cell(cell_num, 0);
-        }
+    public final void initialize(String difficulty){    
         
+        // CREATE BOARD
         switch(difficulty){
             case "3x3":
+                setPuzzleSize(3);
                 regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,3))));
                 regions.add(new Arithmetic(6, 'x', new ArrayList<Integer>(Arrays.asList(1,2))));
                 regions.add(new Arithmetic(3, '/', new ArrayList<Integer>(Arrays.asList(4,7))));
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(5,8))));
                 regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
                 break;
-            case "add-only3":
+            case "add-3":
+                setPuzzleSize(3);
                 regions.add(new Arithmetic(3, '+', new ArrayList<Integer>(Arrays.asList(0,1))));
                 regions.add(new Arithmetic(4, '+', new ArrayList<Integer>(Arrays.asList(2,5))));
                 regions.add(new Arithmetic(4, '+', new ArrayList<Integer>(Arrays.asList(3,6))));
                 regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(4,7,8))));
                 break;
-            case "add-only4":
+            case "add-4":
+                setPuzzleSize(4);
                 regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(0))));
                 regions.add(new Arithmetic(4, new ArrayList<Integer>(Arrays.asList(15))));
                 regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(1,5))));
@@ -401,7 +465,39 @@ public class KenKenPlayer
                 regions.add(new Arithmetic(7, '+', new ArrayList<Integer>(Arrays.asList(9,10,11))));
                 regions.add(new Arithmetic(6, '+', new ArrayList<Integer>(Arrays.asList(12,13,14))));
                 break;
+            case "sub-3":
+                setPuzzleSize(3);
+                regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(4))));
+                regions.add(new Arithmetic(1, '-', new ArrayList<Integer>(Arrays.asList(0,1))));
+                regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(2,5))));
+                regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(3,6))));
+                regions.add(new Arithmetic(1, '-', new ArrayList<Integer>(Arrays.asList(7,8))));
+                break;
+            case "mul-div-4":
+                setPuzzleSize(4);
+                regions.add(new Arithmetic(12, '*', new ArrayList<Integer>(Arrays.asList(0,1,4))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(2,3))));
+                regions.add(new Arithmetic(12, '*', new ArrayList<Integer>(Arrays.asList(5,6,9))));
+                regions.add(new Arithmetic(24, '*', new ArrayList<Integer>(Arrays.asList(7,11,15))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(8,12))));
+                regions.add(new Arithmetic(6, '*', new ArrayList<Integer>(Arrays.asList(10,13,14))));
+                break;
+            case "all-op-5":
+                setPuzzleSize(5);
+                regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,5))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(1,2))));
+                regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(3,8))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(4,9))));
+                regions.add(new Arithmetic(1, '-', new ArrayList<Integer>(Arrays.asList(6,7))));
+                regions.add(new Arithmetic(12, '*', new ArrayList<Integer>(Arrays.asList(10,11,15))));
+                regions.add(new Arithmetic(8, '+', new ArrayList<Integer>(Arrays.asList(12,13,18))));
+                regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(14,19))));
+                regions.add(new Arithmetic(15, '*', new ArrayList<Integer>(Arrays.asList(16,17,22))));
+                regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(20,21))));
+                regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(23,24))));
+                break;
             case "trivial":
+                setPuzzleSize(3);
                 regions.add(new Arithmetic(3, new ArrayList<Integer>(Arrays.asList(0))));
                 regions.add(new Arithmetic(1, new ArrayList<Integer>(Arrays.asList(1))));
                 regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(2))));
@@ -416,9 +512,12 @@ public class KenKenPlayer
                 System.out.println("Invalid difficulty selected.");
         }
         
-        
+        // INIT CELLS
+        for(int cell_num = 0; cell_num < NUM_CELLS; cell_num++){
+            cells[cell_num] = new Cell(cell_num, 0);
+        }
 
-
+        // SET CELL BOXES
         for (Arithmetic box: regions){
             ArrayList<Integer> box_cells = box.cells;
             for (int i: box_cells){
