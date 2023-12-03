@@ -448,7 +448,7 @@ public class KenKenPlayer
             case "3x3":
                 setPuzzleSize(3);
                 regions.add(new Arithmetic(2, '-', new ArrayList<Integer>(Arrays.asList(0,3))));
-                regions.add(new Arithmetic(6, 'x', new ArrayList<Integer>(Arrays.asList(1,2))));
+                regions.add(new Arithmetic(6, '*', new ArrayList<Integer>(Arrays.asList(1,2))));
                 regions.add(new Arithmetic(3, '/', new ArrayList<Integer>(Arrays.asList(4,7))));
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(5,8))));
                 regions.add(new Arithmetic(2, new ArrayList<Integer>(Arrays.asList(6))));
