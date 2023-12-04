@@ -9,7 +9,7 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final String difficulty = "all-op-9";
+    private final String difficulty = "9x9";
 
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
@@ -47,7 +47,7 @@ public class KenKenPlayer
         
 
         // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrack(0,globalDomains);
+        boolean success = backtrack_heuristic(globalDomains);
 
         // Prints evaluation of run
 
@@ -93,7 +93,7 @@ public class KenKenPlayer
         }
 
         for (Arithmetic box: regions){      
-            if(box.operator != '#'){
+            if(box.operator != '#'){ // if there is more than one value in the box
                 for(int i = 0; i < box.cells.size(); i++){
                     int cell = box.cells.get(i);
                     ArrayList<Integer> neighbors = new ArrayList<Integer>();
@@ -104,7 +104,7 @@ public class KenKenPlayer
                     globalQueue.add(group);
                 }
                 
-            } else {
+            } else { // if there is only one value in the box, assign it that value
                 int cell = box.cells.get(0);
                 globalDomains[cell].clear();
                 globalDomains[cell].add(box.target);
@@ -168,6 +168,83 @@ public class KenKenPlayer
         return false;
     }
 
+        private final boolean backtrack_heuristic(ArrayList<Integer>[] Domains) {
+        recursions++;
+        int cell = find_most_constrained(Domains); 
+
+        // solution is found
+        if (cell == -1){
+            final_assignment(Domains);
+            return true;
+        }
+
+        if (cell >= NUM_CELLS){ // found a solution for the board
+            return true;
+        }
+
+        // make a copy of domains so we don't modify global domains
+        ArrayList<Integer>[] domain_copy = new ArrayList[81];
+        for (int i = 0; i < NUM_CELLS; i++) {
+            domain_copy[i] = new ArrayList<>(Domains[i]);
+        }
+        
+        // checks if previous cell assignment is consistent
+        if (!AC3(domain_copy)) { // AC3 found an empty domain
+            return false; // backtrack and find another value
+        } 
+
+        // copy of cell's domain to be iterated through
+        ArrayList<Integer> domain_values = new ArrayList<Integer>();
+        for(int val : domain_copy[cell]){
+            domain_values.add(val);
+        }
+
+        // find a value for this cell
+        for (int value : domain_values) {
+            // assign a value to current cell
+            domain_copy[cell].clear();
+            domain_copy[cell].add(value);
+
+            // check if value works by recursively calling backtrack on next cell
+            boolean consistent = backtrack_heuristic(domain_copy);
+
+            // if backtrack returns true, then all cells have worked, so assign the value
+            if (consistent){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // finds and returns the cell with the most constrained domain 
+    private final int find_most_constrained(ArrayList<Integer>[] Domains){
+
+        int smallest_domain_size = 10; // domain size will never exceed 9
+        int most_constrained_variable = -1; 
+
+        for(int i = 0; i < Domains.length; i++){
+            int domain_size = Domains[i].size();
+
+            // if the domain hasn't been assigned a value and we find a more constrained domain
+            if ( domain_size != 1 && domain_size < smallest_domain_size){
+                smallest_domain_size = domain_size;
+                most_constrained_variable = i;
+            }
+        }
+        
+        return most_constrained_variable;
+    }
+
+    /**
+     * Called when all variables have a domain of 1
+     * Assigns all variables to their singular available value
+     */
+    private void final_assignment(ArrayList<Integer>[] Domains){
+        for(int cell = 0; cell < PUZZLE_SIZE*PUZZLE_SIZE; cell++){
+            vals[cell] = Domains[cell].get(0); 
+        }
+    }
+
     private final boolean AC3(ArrayList<Integer>[] Domains) {
 
         // copy queue, initially all the arcs in csp
@@ -185,26 +262,7 @@ public class KenKenPlayer
             if(!revised) continue; // if the domain wasn't revised move to the next arc
             if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
                 return false;
-            }
-            //add other neighbors to queue
-            // int Xi = current_arc.cell;
-            // for (int k: neighbors[Xi]){
-            //     if (k != Xj){
-            //         Arc neighbor = new Arc(k, Xi);
-            //         boolean inQ = false;
-            //         // check if the arc is already in queue
-            //         for(Arc a : Q){ 
-            //             if(a.compareTo(neighbor) == 0) {
-            //                 inQ = true;
-            //                 break;
-            //             }
-            //         }
-            //         if (!inQ){ //add the arc if it was not already in the queue
-            //             Q.add(neighbor);
-            //         }
-            //     }
-            // }
-            
+            } 
         }
         
 		return true;
@@ -260,6 +318,7 @@ public class KenKenPlayer
             min_sum += min(Domains[i]);
             max_sum += max(Domains[i]);
         }
+
         for(int i=0; i<dom.size(); i++){
             if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
                 dom.remove(i);
@@ -502,7 +561,7 @@ public class KenKenPlayer
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(20,21))));
                 regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(23,24))));
                 break;
-            case "all-op-9":
+            case "9x9":
                 setPuzzleSize(9);
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(0,1))));
                 regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(2,3))));
