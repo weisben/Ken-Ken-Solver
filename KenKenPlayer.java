@@ -1,5 +1,6 @@
 import javax.swing.*;
-
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -9,7 +10,8 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final String difficulty = "9x9";
+    //private final String difficulty = "3x3";
+    //private String difficulty;
 
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
@@ -38,6 +40,27 @@ public class KenKenPlayer
     }
 
     private final void AC3Init(){
+        // board.Clear();
+		recursions = 0; 
+
+        initGlobalDomains(); // initialize domains for each cell
+
+        allDiff(); // initializes neighbors and globalQueue   
+        
+
+        // Initial call to backtrack() on cell 0 (top left)
+        boolean success = backtrack(0, globalDomains);
+
+        // Prints evaluation of run
+
+        /*
+         * sets final board values in vals
+         */
+        Finished(success);
+
+    }
+
+    private final void most_constrained_solver(){
         // board.Clear();
 		recursions = 0; 
 
@@ -170,6 +193,8 @@ public class KenKenPlayer
 
         private final boolean backtrack_heuristic(ArrayList<Integer>[] Domains) {
         recursions++;
+        System.out.println("Recursion count: " + recursions);  // Debugging statement
+
         int cell = find_most_constrained(Domains); 
 
         // solution is found
@@ -183,7 +208,7 @@ public class KenKenPlayer
         }
 
         // make a copy of domains so we don't modify global domains
-        ArrayList<Integer>[] domain_copy = new ArrayList[81];
+        ArrayList<Integer>[] domain_copy = new ArrayList[PUZZLE_SIZE*PUZZLE_SIZE];
         for (int i = 0; i < NUM_CELLS; i++) {
             domain_copy[i] = new ArrayList<>(Domains[i]);
         }
@@ -312,12 +337,19 @@ public class KenKenPlayer
 
         ArrayList<Integer> dom = Domains[t.cell];
 
+        int neighbor = t.neighbors.get(0);
+        ArrayList<Integer> neighborDom = Domains[neighbor];
+
         int min_sum = 0;
         int max_sum = 0;
         for(int i: t.neighbors){
             min_sum += min(Domains[i]);
             max_sum += max(Domains[i]);
         }
+
+        // if the cage size of the add is 2
+        //  complement = target - val
+        // if cage cells does not contain the complement, then remove the val from domain
 
         for(int i=0; i<dom.size(); i++){
             if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
@@ -606,13 +638,193 @@ public class KenKenPlayer
         }
     }
     
-    public void run(){
+
+    public void run(String difficulty){
         initialize(difficulty);
+
+        GUI gui = new GUI();
+        gui.initVals();
+
         AC3Init();
     }
 
     public static void main(String[] args) {
+        Scanner scan = new Scanner(System.in);
+        System.out.println("difficulty? \teasy (e), hard (h)");
+
+        char choice = scan.nextLine().charAt(0);
+
         KenKenPlayer app = new KenKenPlayer();
-        app.run();
+
+        if (choice == 'e'){
+            app.run("3x3");
+        }
+        if (choice == 'h'){
+            app.run("9x9");
+        }
+        scan.close();
+
+
+    }
+
+    class GUI {
+        JFrame mainFrame;
+        CellPanel[][] cellPanels;
+        JPanel gamePanel, buttonPanel;
+        JLabel recursionLabel;
+        JButton ac3Button, heuristicButton, clearButton;
+        // Assuming a maximum puzzle size for color array initialization
+        Color[] regionColors = new Color[PUZZLE_SIZE * PUZZLE_SIZE]; 
+
+        public GUI() {
+            mainFrame = new JFrame("KenKen Player");
+            mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            mainFrame.setLayout(new BorderLayout());
+
+            gamePanel = new JPanel();
+            gamePanel.setLayout(new GridLayout(PUZZLE_SIZE, PUZZLE_SIZE)); // Grid layout for the puzzle
+
+            // Initialize the cell panels
+            cellPanels = new CellPanel[PUZZLE_SIZE][PUZZLE_SIZE];
+            for (int r = 0; r < PUZZLE_SIZE; r++) {
+                for (int c = 0; c < PUZZLE_SIZE; c++) {
+                    cellPanels[r][c] = new CellPanel();
+                    gamePanel.add(cellPanels[r][c]);
+                }
+            }
+
+            mainFrame.add(gamePanel, BorderLayout.CENTER);
+            mainFrame.pack();
+            mainFrame.setVisible(true);
+
+        // Button panel
+        buttonPanel = new JPanel();
+        ac3Button = new JButton("AC3");
+        heuristicButton = new JButton("Most Constrained Heuristic");
+        clearButton = new JButton("Clear Board");
+        recursionLabel = new JLabel("Recursions: ");
+        
+        // action listeners for buttons
+        ac3Button.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                AC3Init();
+                recursionLabel.setText("Recursions: " + recursions);
+                updateBoard();
+            }
+        });
+        
+        heuristicButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                most_constrained_solver();
+                recursionLabel.setText("Recursions: " + recursions);
+                updateBoard();
+            }
+        });
+
+        clearButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                clearBoard();
+            }
+        });
+
+        buttonPanel.add(ac3Button);
+        buttonPanel.add(heuristicButton);
+        buttonPanel.add(clearButton);
+        buttonPanel.add(recursionLabel);
+
+        mainFrame.add(gamePanel, BorderLayout.CENTER);
+        mainFrame.add(buttonPanel, BorderLayout.SOUTH);
+        mainFrame.pack();
+        mainFrame.setVisible(true);
+
+        }
+
+        //  update the board with the final solution values
+        private void updateBoard() {
+            for (int i = 0; i < PUZZLE_SIZE; i++) {
+                for (int j = 0; j < PUZZLE_SIZE; j++) {
+                    int cellNum = i * PUZZLE_SIZE + j;
+                    cellPanels[i][j].setValue(Integer.toString(vals[cellNum]));
+                }
+            }
+        }
+
+        private void clearBoard() {
+            for (int i = 0; i < PUZZLE_SIZE; i++) {
+                for (int j = 0; j < PUZZLE_SIZE; j++) {
+                    cellPanels[i][j].valueField.setText(""); // Clear the text field
+                    cellPanels[i][j].valueField.setEditable(true); // Make the field editable again
+                }
+            }
+            recursionLabel.setText("Recursions: 0"); // Reset the recursion label
+        }
+
+        public void initVals() {
+            // Assign colors to regions
+            assignRegionColors();
+
+            // Set the borders and constraints for each cell panel
+            for (int i = 0; i < regions.size(); i++) {
+                Arithmetic arithmetic = regions.get(i);
+                for (int cellIndex : arithmetic.cells) {
+                    int row = cellIndex / PUZZLE_SIZE;
+                    int col = cellIndex % PUZZLE_SIZE;
+                    CellPanel cellPanel = cellPanels[row][col];
+                    cellPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                    cellPanel.setRegionColor(regionColors[i]);
+                    if (cellIndex == arithmetic.cells.get(0)) { // Top-left cell of the region
+                        cellPanel.setConstraint(arithmetic.target + String.valueOf(arithmetic.operator));
+                    }
+                }
+            }
+        }
+
+        private void assignRegionColors() {
+            // Set a different color for each region
+            for (int i = 0; i < regions.size(); i++) {
+                // Cycle through a predefined array of colors
+                regionColors[i] = new Color(
+                    (int)(Math.random() * 256),
+                    (int)(Math.random() * 256),
+                    (int)(Math.random() * 256),
+                    (int)(Math.random() * 256)
+                );
+            }
+        }
+        
+
+        // ... additional GUI methods ...
+    }
+
+    class CellPanel extends JPanel {
+        JLabel constraintLabel;
+        JTextField valueField;
+
+        public CellPanel() {
+            super(new BorderLayout());
+            constraintLabel = new JLabel();
+            valueField = new JTextField();
+            valueField.setHorizontalAlignment(JTextField.CENTER);
+
+            // Adjust the font size for the constraint label
+            Font currentFont = constraintLabel.getFont();
+            constraintLabel.setFont(new Font(currentFont.getName(), currentFont.getStyle(), 10));
+            constraintLabel.setBorder(new EmptyBorder(0, 2, 0, 0)); // Add some padding to the label
+
+            add(constraintLabel, BorderLayout.NORTH);
+            add(valueField, BorderLayout.CENTER);
+        }
+
+        public void setConstraint(String text) {
+            constraintLabel.setText(text);
+        }
+
+        public void setRegionColor(Color color) {
+            setBackground(color);
+        }
+
+        public void setValue(String value) {
+            valueField.setText(value);
+        }
     }
 }
