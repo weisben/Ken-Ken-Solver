@@ -1,6 +1,7 @@
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
+import javax.swing.plaf.ColorUIResource;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -649,6 +650,7 @@ public class KenKenPlayer
     }
 
     public static void main(String[] args) {
+
         Scanner scan = new Scanner(System.in);
         System.out.println("difficulty? \teasy (e), hard (h)");
 
@@ -782,10 +784,10 @@ public class KenKenPlayer
             for (int i = 0; i < regions.size(); i++) {
                 // Cycle through a predefined array of colors
                 regionColors[i] = new Color(
-                    (int)(Math.random() * 256),
-                    (int)(Math.random() * 256),
-                    (int)(Math.random() * 256),
-                    (int)(Math.random() * 256)
+                    (int)(Math.random() * 128),
+                    (int)(Math.random() * 128),
+                    (int)(Math.random() * 128),
+                    (int)(Math.random() * 128)
                 );
             }
         }
@@ -807,6 +809,7 @@ public class KenKenPlayer
             constraintLabel.setOpaque(true);
             valueField.setOpaque(true);
 
+            
             // Adjust the font size for the constraint label
             Font currentFont = constraintLabel.getFont();
             constraintLabel.setFont(new Font(currentFont.getName(), Font.BOLD, 17)); 
@@ -815,7 +818,7 @@ public class KenKenPlayer
             add(constraintLabel, BorderLayout.NORTH);
             add(valueField, BorderLayout.CENTER);
 
-            setOpaque(true);
+            setOpaque(false);
 
         }
 
