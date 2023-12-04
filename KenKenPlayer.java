@@ -663,8 +663,6 @@ public class KenKenPlayer
             app.run("9x9");
         }
         scan.close();
-
-
     }
 
     class GUI {
@@ -792,8 +790,6 @@ public class KenKenPlayer
             }
         }
         
-
-        // ... additional GUI methods ...
     }
 
     class CellPanel extends JPanel {
@@ -802,17 +798,25 @@ public class KenKenPlayer
 
         public CellPanel() {
             super(new BorderLayout());
+            setBorder(BorderFactory.createLineBorder(Color.BLACK)); // Set the border for the cell
+
             constraintLabel = new JLabel();
             valueField = new JTextField();
             valueField.setHorizontalAlignment(JTextField.CENTER);
 
+            constraintLabel.setOpaque(true);
+            valueField.setOpaque(true);
+
             // Adjust the font size for the constraint label
             Font currentFont = constraintLabel.getFont();
-            constraintLabel.setFont(new Font(currentFont.getName(), currentFont.getStyle(), 10));
+            constraintLabel.setFont(new Font(currentFont.getName(), Font.BOLD, 17)); 
             constraintLabel.setBorder(new EmptyBorder(0, 2, 0, 0)); // Add some padding to the label
 
             add(constraintLabel, BorderLayout.NORTH);
             add(valueField, BorderLayout.CENTER);
+
+            setOpaque(true);
+
         }
 
         public void setConstraint(String text) {
@@ -821,6 +825,8 @@ public class KenKenPlayer
 
         public void setRegionColor(Color color) {
             setBackground(color);
+            constraintLabel.setBackground(color); 
+            valueField.setBackground(color);
         }
 
         public void setValue(String value) {
