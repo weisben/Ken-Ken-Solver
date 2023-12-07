@@ -1,5 +1,7 @@
 import javax.swing.*;
-
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
+import javax.swing.plaf.ColorUIResource;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -9,7 +11,8 @@ import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
-    private final String difficulty = "all-op-9";
+    //private final String difficulty = "3x3";
+    //private String difficulty;
 
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
@@ -47,7 +50,28 @@ public class KenKenPlayer
         
 
         // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrack(0,globalDomains);
+        boolean success = backtrack(0, globalDomains);
+
+        // Prints evaluation of run
+
+        /*
+         * sets final board values in vals
+         */
+        Finished(success);
+
+    }
+
+    private final void most_constrained_solver(){
+        // board.Clear();
+		recursions = 0; 
+
+        initGlobalDomains(); // initialize domains for each cell
+
+        allDiff(); // initializes neighbors and globalQueue   
+        
+
+        // Initial call to backtrack() on cell 0 (top left)
+        boolean success = backtrack_heuristic(globalDomains);
 
         // Prints evaluation of run
 
@@ -93,7 +117,7 @@ public class KenKenPlayer
         }
 
         for (Arithmetic box: regions){      
-            if(box.operator != '#'){
+            if(box.operator != '#'){ // if there is more than one value in the box
                 for(int i = 0; i < box.cells.size(); i++){
                     int cell = box.cells.get(i);
                     ArrayList<Integer> neighbors = new ArrayList<Integer>();
@@ -104,7 +128,7 @@ public class KenKenPlayer
                     globalQueue.add(group);
                 }
                 
-            } else {
+            } else { // if there is only one value in the box, assign it that value
                 int cell = box.cells.get(0);
                 globalDomains[cell].clear();
                 globalDomains[cell].add(box.target);
@@ -168,6 +192,85 @@ public class KenKenPlayer
         return false;
     }
 
+        private final boolean backtrack_heuristic(ArrayList<Integer>[] Domains) {
+        recursions++;
+        System.out.println("Recursion count: " + recursions);  // Debugging statement
+
+        int cell = find_most_constrained(Domains); 
+
+        // solution is found
+        if (cell == -1){
+            final_assignment(Domains);
+            return true;
+        }
+
+        if (cell >= NUM_CELLS){ // found a solution for the board
+            return true;
+        }
+
+        // make a copy of domains so we don't modify global domains
+        ArrayList<Integer>[] domain_copy = new ArrayList[PUZZLE_SIZE*PUZZLE_SIZE];
+        for (int i = 0; i < NUM_CELLS; i++) {
+            domain_copy[i] = new ArrayList<>(Domains[i]);
+        }
+        
+        // checks if previous cell assignment is consistent
+        if (!AC3(domain_copy)) { // AC3 found an empty domain
+            return false; // backtrack and find another value
+        } 
+
+        // copy of cell's domain to be iterated through
+        ArrayList<Integer> domain_values = new ArrayList<Integer>();
+        for(int val : domain_copy[cell]){
+            domain_values.add(val);
+        }
+
+        // find a value for this cell
+        for (int value : domain_values) {
+            // assign a value to current cell
+            domain_copy[cell].clear();
+            domain_copy[cell].add(value);
+
+            // check if value works by recursively calling backtrack on next cell
+            boolean consistent = backtrack_heuristic(domain_copy);
+
+            // if backtrack returns true, then all cells have worked, so assign the value
+            if (consistent){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // finds and returns the cell with the most constrained domain 
+    private final int find_most_constrained(ArrayList<Integer>[] Domains){
+
+        int smallest_domain_size = 10; // domain size will never exceed 9
+        int most_constrained_variable = -1; 
+
+        for(int i = 0; i < Domains.length; i++){
+            int domain_size = Domains[i].size();
+
+            // if the domain hasn't been assigned a value and we find a more constrained domain
+            if ( domain_size != 1 && domain_size < smallest_domain_size){
+                smallest_domain_size = domain_size;
+                most_constrained_variable = i;
+            }
+        }
+        
+        return most_constrained_variable;
+    }
+
+    /**
+     * Called when all variables have a domain of 1
+     * Assigns all variables to their singular available value
+     */
+    private void final_assignment(ArrayList<Integer>[] Domains){
+        for(int cell = 0; cell < PUZZLE_SIZE*PUZZLE_SIZE; cell++){
+            vals[cell] = Domains[cell].get(0); 
+        }
+    }
+
     private final boolean AC3(ArrayList<Integer>[] Domains) {
 
         // copy queue, initially all the arcs in csp
@@ -185,26 +288,7 @@ public class KenKenPlayer
             if(!revised) continue; // if the domain wasn't revised move to the next arc
             if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
                 return false;
-            }
-            //add other neighbors to queue
-            // int Xi = current_arc.cell;
-            // for (int k: neighbors[Xi]){
-            //     if (k != Xj){
-            //         Arc neighbor = new Arc(k, Xi);
-            //         boolean inQ = false;
-            //         // check if the arc is already in queue
-            //         for(Arc a : Q){ 
-            //             if(a.compareTo(neighbor) == 0) {
-            //                 inQ = true;
-            //                 break;
-            //             }
-            //         }
-            //         if (!inQ){ //add the arc if it was not already in the queue
-            //             Q.add(neighbor);
-            //         }
-            //     }
-            // }
-            
+            } 
         }
         
 		return true;
@@ -254,12 +338,20 @@ public class KenKenPlayer
 
         ArrayList<Integer> dom = Domains[t.cell];
 
+        int neighbor = t.neighbors.get(0);
+        ArrayList<Integer> neighborDom = Domains[neighbor];
+
         int min_sum = 0;
         int max_sum = 0;
         for(int i: t.neighbors){
             min_sum += min(Domains[i]);
             max_sum += max(Domains[i]);
         }
+
+        // if the cage size of the add is 2
+        //  complement = target - val
+        // if cage cells does not contain the complement, then remove the val from domain
+
         for(int i=0; i<dom.size(); i++){
             if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
                 dom.remove(i);
@@ -502,7 +594,7 @@ public class KenKenPlayer
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(20,21))));
                 regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(23,24))));
                 break;
-            case "all-op-9":
+            case "9x9":
                 setPuzzleSize(9);
                 regions.add(new Arithmetic(2, '/', new ArrayList<Integer>(Arrays.asList(0,1))));
                 regions.add(new Arithmetic(4, '-', new ArrayList<Integer>(Arrays.asList(2,3))));
@@ -547,13 +639,201 @@ public class KenKenPlayer
         }
     }
     
-    public void run(){
+
+    public void run(String difficulty){
         initialize(difficulty);
+
+        GUI gui = new GUI();
+        gui.initVals();
+
         AC3Init();
     }
 
     public static void main(String[] args) {
+
+        Scanner scan = new Scanner(System.in);
+        System.out.println("difficulty? \teasy (e), hard (h)");
+
+        char choice = scan.nextLine().charAt(0);
+
         KenKenPlayer app = new KenKenPlayer();
-        app.run();
+
+        if (choice == 'e'){
+            app.run("3x3");
+        }
+        if (choice == 'h'){
+            app.run("9x9");
+        }
+        scan.close();
+    }
+
+    class GUI {
+        JFrame mainFrame;
+        CellPanel[][] cellPanels;
+        JPanel gamePanel, buttonPanel;
+        JLabel recursionLabel;
+        JButton ac3Button, heuristicButton, clearButton;
+        // Assuming a maximum puzzle size for color array initialization
+        Color[] regionColors = new Color[PUZZLE_SIZE * PUZZLE_SIZE]; 
+
+        public GUI() {
+            mainFrame = new JFrame("KenKen Player");
+            mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            mainFrame.setLayout(new BorderLayout());
+
+            gamePanel = new JPanel();
+            gamePanel.setLayout(new GridLayout(PUZZLE_SIZE, PUZZLE_SIZE)); // Grid layout for the puzzle
+
+            // Initialize the cell panels
+            cellPanels = new CellPanel[PUZZLE_SIZE][PUZZLE_SIZE];
+            for (int r = 0; r < PUZZLE_SIZE; r++) {
+                for (int c = 0; c < PUZZLE_SIZE; c++) {
+                    cellPanels[r][c] = new CellPanel();
+                    gamePanel.add(cellPanels[r][c]);
+                }
+            }
+
+            mainFrame.add(gamePanel, BorderLayout.CENTER);
+            mainFrame.pack();
+            mainFrame.setVisible(true);
+
+        // Button panel
+        buttonPanel = new JPanel();
+        ac3Button = new JButton("AC3");
+        heuristicButton = new JButton("Most Constrained Heuristic");
+        clearButton = new JButton("Clear Board");
+        recursionLabel = new JLabel("Recursions: ");
+        
+        // action listeners for buttons
+        ac3Button.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                AC3Init();
+                recursionLabel.setText("Recursions: " + recursions);
+                updateBoard();
+            }
+        });
+        
+        heuristicButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                most_constrained_solver();
+                recursionLabel.setText("Recursions: " + recursions);
+                updateBoard();
+            }
+        });
+
+        clearButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                clearBoard();
+            }
+        });
+
+        buttonPanel.add(ac3Button);
+        buttonPanel.add(heuristicButton);
+        buttonPanel.add(clearButton);
+        buttonPanel.add(recursionLabel);
+
+        mainFrame.add(gamePanel, BorderLayout.CENTER);
+        mainFrame.add(buttonPanel, BorderLayout.SOUTH);
+        mainFrame.pack();
+        mainFrame.setVisible(true);
+
+        }
+
+        //  update the board with the final solution values
+        private void updateBoard() {
+            for (int i = 0; i < PUZZLE_SIZE; i++) {
+                for (int j = 0; j < PUZZLE_SIZE; j++) {
+                    int cellNum = i * PUZZLE_SIZE + j;
+                    cellPanels[i][j].setValue(Integer.toString(vals[cellNum]));
+                }
+            }
+        }
+
+        private void clearBoard() {
+            for (int i = 0; i < PUZZLE_SIZE; i++) {
+                for (int j = 0; j < PUZZLE_SIZE; j++) {
+                    cellPanels[i][j].valueField.setText(""); // Clear the text field
+                    cellPanels[i][j].valueField.setEditable(true); // Make the field editable again
+                }
+            }
+            recursionLabel.setText("Recursions: 0"); // Reset the recursion label
+        }
+
+        public void initVals() {
+            // Assign colors to regions
+            assignRegionColors();
+
+            // Set the borders and constraints for each cell panel
+            for (int i = 0; i < regions.size(); i++) {
+                Arithmetic arithmetic = regions.get(i);
+                for (int cellIndex : arithmetic.cells) {
+                    int row = cellIndex / PUZZLE_SIZE;
+                    int col = cellIndex % PUZZLE_SIZE;
+                    CellPanel cellPanel = cellPanels[row][col];
+                    cellPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                    cellPanel.setRegionColor(regionColors[i]);
+                    if (cellIndex == arithmetic.cells.get(0)) { // Top-left cell of the region
+                        cellPanel.setConstraint(arithmetic.target + String.valueOf(arithmetic.operator));
+                    }
+                }
+            }
+        }
+
+        private void assignRegionColors() {
+            // Set a different color for each region
+            for (int i = 0; i < regions.size(); i++) {
+                // Cycle through a predefined array of colors
+                regionColors[i] = new Color(
+                    (int)(Math.random() * 128),
+                    (int)(Math.random() * 128),
+                    (int)(Math.random() * 128),
+                    (int)(Math.random() * 128)
+                );
+            }
+        }
+        
+    }
+
+    class CellPanel extends JPanel {
+        JLabel constraintLabel;
+        JTextField valueField;
+
+        public CellPanel() {
+            super(new BorderLayout());
+            setBorder(BorderFactory.createLineBorder(Color.BLACK)); // Set the border for the cell
+
+            constraintLabel = new JLabel();
+            valueField = new JTextField();
+            valueField.setHorizontalAlignment(JTextField.CENTER);
+
+            constraintLabel.setOpaque(true);
+            valueField.setOpaque(true);
+
+            
+            // Adjust the font size for the constraint label
+            Font currentFont = constraintLabel.getFont();
+            constraintLabel.setFont(new Font(currentFont.getName(), Font.BOLD, 17)); 
+            constraintLabel.setBorder(new EmptyBorder(0, 2, 0, 0)); // Add some padding to the label
+
+            add(constraintLabel, BorderLayout.NORTH);
+            add(valueField, BorderLayout.CENTER);
+
+            setOpaque(false);
+
+        }
+
+        public void setConstraint(String text) {
+            constraintLabel.setText(text);
+        }
+
+        public void setRegionColor(Color color) {
+            setBackground(color);
+            constraintLabel.setBackground(color); 
+            valueField.setBackground(color);
+        }
+
+        public void setValue(String value) {
+            valueField.setText(value);
+        }
     }
 }
