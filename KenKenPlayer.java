@@ -192,7 +192,7 @@ public class KenKenPlayer
         return false;
     }
 
-        private final boolean backtrack_heuristic(ArrayList<Integer>[] Domains) {
+    private final boolean backtrack_heuristic(ArrayList<Integer>[] Domains) {
         recursions++;
         System.out.println("Recursion count: " + recursions);  // Debugging statement
 
@@ -204,12 +204,8 @@ public class KenKenPlayer
             return true;
         }
 
-        if (cell >= NUM_CELLS){ // found a solution for the board
-            return true;
-        }
-
         // make a copy of domains so we don't modify global domains
-        ArrayList<Integer>[] domain_copy = new ArrayList[PUZZLE_SIZE*PUZZLE_SIZE];
+        ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
         for (int i = 0; i < NUM_CELLS; i++) {
             domain_copy[i] = new ArrayList<>(Domains[i]);
         }
@@ -272,7 +268,6 @@ public class KenKenPlayer
     }
 
     private final boolean AC3(ArrayList<Integer>[] Domains) {
-
         // copy queue, initially all the arcs in csp
         Queue<Arc> Q = new LinkedList<Arc>();
         for(Arc a : globalQueue){
