@@ -7,7 +7,6 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.Queue;
-import java.text.DecimalFormat;
 
 public class KenKenPlayer
 {
@@ -32,6 +31,9 @@ public class KenKenPlayer
     Queue<Arc> globalQueue = new LinkedList<Arc>();
 
 
+    /*
+     * INITIALIZATION
+     */
     private void setPuzzleSize(int dim){
         PUZZLE_SIZE = dim;
         NUM_CELLS = dim * dim;
@@ -40,7 +42,10 @@ public class KenKenPlayer
         neighbors = new ArrayList[NUM_CELLS];
     }
 
-    private final void AC3Init(){
+    /*
+     * SOLVERS
+     */
+    private final void solver_AC3(){
         // board.Clear();
 		recursions = 0; 
 
@@ -61,7 +66,7 @@ public class KenKenPlayer
 
     }
 
-    private final void most_constrained_solver(){
+    private final void solver_MostConstrained(){
         // board.Clear();
 		recursions = 0; 
 
@@ -71,7 +76,7 @@ public class KenKenPlayer
         
 
         // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrack_heuristic(globalDomains);
+        boolean success = backtrackMostConstrainedVariable(globalDomains);
 
         // Prints evaluation of run
 
@@ -81,6 +86,33 @@ public class KenKenPlayer
         Finished(success);
 
     }
+
+
+    private final void solver_LeastConstraining(){
+        // board.Clear();
+		recursions = 0; 
+
+        initGlobalDomains(); // initialize domains for each cell
+
+        allDiff(); // initializes neighbors and globalQueue   
+        
+
+        // Initial call to backtrack() on cell 0 (top left)
+        boolean success = backtrackLeastConstrainingValue(0, globalDomains);
+
+        // Prints evaluation of run
+
+        /*
+         * sets final board values in vals
+         */
+        Finished(success);
+
+    }
+
+    /*
+     * CONSTRAINT PROPOGATION
+     */
+
 
     /*
      *  This method defines constraints between a set of variables.
@@ -158,7 +190,7 @@ public class KenKenPlayer
         }
 
         // make a copy of domains so we don't modify global domains
-        ArrayList<Integer>[] domain_copy = new ArrayList[81];
+        ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
         for (int i = 0; i < NUM_CELLS; i++) {
             domain_copy[i] = new ArrayList<>(Domains[i]);
         }
@@ -192,80 +224,7 @@ public class KenKenPlayer
         return false;
     }
 
-    private final boolean backtrack_heuristic(ArrayList<Integer>[] Domains) {
-        recursions++;
-        System.out.println("Recursion count: " + recursions);  // Debugging statement
-
-        int cell = find_most_constrained(Domains); 
-
-        // solution is found
-        if (cell == -1){
-            final_assignment(Domains);
-            return true;
-        }
-
-        // make a copy of domains so we don't modify global domains
-        ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
-        for (int i = 0; i < NUM_CELLS; i++) {
-            domain_copy[i] = new ArrayList<>(Domains[i]);
-        }
-        
-        // checks if previous cell assignment is consistent
-        if (!AC3(domain_copy)) { // AC3 found an empty domain
-            return false; // backtrack and find another value
-        } 
-
-        // copy of cell's domain to be iterated through
-        ArrayList<Integer> domain_values = new ArrayList<Integer>();
-        for(int val : domain_copy[cell]){
-            domain_values.add(val);
-        }
-
-        // find a value for this cell
-        for (int value : domain_values) {
-            // assign a value to current cell
-            domain_copy[cell].clear();
-            domain_copy[cell].add(value);
-
-            // check if value works by recursively calling backtrack on next cell
-            boolean consistent = backtrack_heuristic(domain_copy);
-
-            // if backtrack returns true, then all cells have worked, so assign the value
-            if (consistent){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // finds and returns the cell with the most constrained domain 
-    private final int find_most_constrained(ArrayList<Integer>[] Domains){
-
-        int smallest_domain_size = 10; // domain size will never exceed 9
-        int most_constrained_variable = -1; 
-
-        for(int i = 0; i < Domains.length; i++){
-            int domain_size = Domains[i].size();
-
-            // if the domain hasn't been assigned a value and we find a more constrained domain
-            if ( domain_size != 1 && domain_size < smallest_domain_size){
-                smallest_domain_size = domain_size;
-                most_constrained_variable = i;
-            }
-        }
-        
-        return most_constrained_variable;
-    }
-
-    /**
-     * Called when all variables have a domain of 1
-     * Assigns all variables to their singular available value
-     */
-    private void final_assignment(ArrayList<Integer>[] Domains){
-        for(int cell = 0; cell < PUZZLE_SIZE*PUZZLE_SIZE; cell++){
-            vals[cell] = Domains[cell].get(0); 
-        }
-    }
+    
 
     private final boolean AC3(ArrayList<Integer>[] Domains) {
         // copy queue, initially all the arcs in csp
@@ -333,19 +292,12 @@ public class KenKenPlayer
 
         ArrayList<Integer> dom = Domains[t.cell];
 
-        int neighbor = t.neighbors.get(0);
-        ArrayList<Integer> neighborDom = Domains[neighbor];
-
         int min_sum = 0;
         int max_sum = 0;
         for(int i: t.neighbors){
             min_sum += min(Domains[i]);
             max_sum += max(Domains[i]);
         }
-
-        // if the cage size of the add is 2
-        //  complement = target - val
-        // if cage cells does not contain the complement, then remove the val from domain
 
         for(int i=0; i<dom.size(); i++){
             if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
@@ -451,6 +403,169 @@ public class KenKenPlayer
         }  
         return max_value; 
     }
+
+    /*
+     * HEURISTICS
+     */
+
+     /* Most Constrained Variable Heuristic */
+    private final boolean backtrackMostConstrainedVariable(ArrayList<Integer>[] Domains) {
+        recursions++;
+
+        int cell = findMostConstrained(Domains); 
+
+        // solution is found
+        if (cell == -1){
+            finalAssignment(Domains);
+            return true;
+        }
+
+        // make a copy of domains so we don't modify global domains
+        ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
+        for (int i = 0; i < NUM_CELLS; i++) {
+            domain_copy[i] = new ArrayList<>(Domains[i]);
+        }
+        
+        // checks if previous cell assignment is consistent
+        if (!AC3(domain_copy)) { // AC3 found an empty domain
+            return false; // backtrack and find another value
+        } 
+
+        // copy of cell's domain to be iterated through
+        ArrayList<Integer> domain_values = new ArrayList<Integer>();
+        for(int val : domain_copy[cell]){
+            domain_values.add(val);
+        }
+
+        // find a value for this cell
+        for (int value : domain_values) {
+            // assign a value to current cell
+            domain_copy[cell].clear();
+            domain_copy[cell].add(value);
+
+            // check if value works by recursively calling backtrack on next cell
+            boolean consistent = backtrackMostConstrainedVariable(domain_copy);
+
+            // if backtrack returns true, then all cells have worked, so assign the value
+            if (consistent){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // finds and returns the cell with the most constrained domain 
+    private final int findMostConstrained(ArrayList<Integer>[] Domains){
+
+        int smallest_domain_size = PUZZLE_SIZE + 1 ; // domain size will never exceed board size
+        int most_constrained_variable = -1; 
+
+        for(int i = 0; i < Domains.length; i++){
+            int domain_size = Domains[i].size();
+
+            // if the domain hasn't been assigned a value and we find a more constrained domain
+            if ( domain_size != 1 && domain_size < smallest_domain_size){
+                smallest_domain_size = domain_size;
+                most_constrained_variable = i;
+            }
+        }
+        
+        return most_constrained_variable;
+    }
+
+    /**
+     * Called when all variables have a domain of 1
+     * Assigns all variables to their singular available value
+     */
+    private void finalAssignment(ArrayList<Integer>[] Domains){
+        for(int cell = 0; cell < PUZZLE_SIZE*PUZZLE_SIZE; cell++){
+            vals[cell] = Domains[cell].get(0); 
+        }
+    }
+
+    /* Least Constraining Value Heuristic */
+    private final boolean backtrackLeastConstrainingValue(int cell, ArrayList<Integer>[] Domains) {
+        recursions++;
+
+        // uncomment this if you want to test without mcv heuristic
+        // 
+        // if (cell >= NUM_CELLS){ // found a solution for the board
+        //     return true;
+        // }
+
+        // uncomment this if you want to test with combining mcv heuristic 
+        cell = findMostConstrained(Domains); 
+
+        // solution is found
+        if (cell == -1){
+            finalAssignment(Domains);
+            return true;
+        }
+
+        // make a copy of domains so we don't modify global domains
+        ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
+        for (int i = 0; i < NUM_CELLS; i++) {
+            domain_copy[i] = new ArrayList<>(Domains[i]);
+        }
+        
+        // checks if previous cell assignment is consistent
+        if (!AC3(domain_copy)) { // AC3 found an empty domain
+            return false; // backtrack and find another value
+        } 
+
+        // copy of cell's domain to be iterated through
+        ArrayList<Integer> domain_values = new ArrayList<Integer>();
+        for(int val : domain_copy[cell]){
+            domain_values.add(val);
+        }
+
+        // sorts the domain by least constraining value
+        ArrayList<Integer> domain_LCV = sortDomainByLCV(cell, new ArrayList<>(domain_copy[cell]), domain_copy);
+
+        // find a value for this cell
+        for (int value : domain_LCV) {
+            // assign a value to current cell
+            domain_copy[cell].clear();
+            domain_copy[cell].add(value);
+
+            // check if value works by recursively calling backtrack on next cell
+            boolean consistent = backtrackLeastConstrainingValue(cell + 1, domain_copy);
+
+            // if backtrack returns true, then all cells have worked, so assign the value
+            if (consistent){
+                vals[cell] = value; 
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* sorts the domain copy in order of least constraining values */
+    private ArrayList<Integer> sortDomainByLCV(int cell, ArrayList<Integer> domainValues, ArrayList<Integer>[] Domains) {
+        domainValues.sort((val1, val2) -> {
+            int lcv1 = findLeastConstrainingValue(cell, val1, Domains);
+            int lcv2 = findLeastConstrainingValue(cell, val2, Domains);
+            return Integer.compare(lcv1, lcv2);
+        });
+        return domainValues;
+    }
+
+    /* finds the least constraining value by calculating the number of times
+     * it appears in a neighbor's cell
+     */
+    private int findLeastConstrainingValue(int cell, int value, ArrayList<Integer>[] Domains) {
+        int frequency = 0;
+        for (int neighbor : neighbors[cell]) {
+            if (Domains[neighbor].contains(value)) {
+                frequency++;
+            }
+        }
+        return frequency;
+    }
+
+    /*
+     * GUI AND CLASSES
+     */
 
     private void Finished(boolean success){
     	
@@ -641,7 +756,7 @@ public class KenKenPlayer
         GUI gui = new GUI();
         gui.initVals();
 
-        AC3Init();
+        solver_AC3();
     }
 
     public static void main(String[] args) {
@@ -667,7 +782,7 @@ public class KenKenPlayer
         CellPanel[][] cellPanels;
         JPanel gamePanel, buttonPanel;
         JLabel recursionLabel;
-        JButton ac3Button, heuristicButton, clearButton;
+        JButton ac3Button, mostConstrainedButton, leastConstrainingButton, clearButton;
         // Assuming a maximum puzzle size for color array initialization
         Color[] regionColors = new Color[PUZZLE_SIZE * PUZZLE_SIZE]; 
 
@@ -695,22 +810,31 @@ public class KenKenPlayer
         // Button panel
         buttonPanel = new JPanel();
         ac3Button = new JButton("AC3");
-        heuristicButton = new JButton("Most Constrained Heuristic");
+        mostConstrainedButton = new JButton("Most Constrained Variable");
+        leastConstrainingButton = new JButton("Least Constraining Value");
         clearButton = new JButton("Clear Board");
         recursionLabel = new JLabel("Recursions: ");
         
         // action listeners for buttons
         ac3Button.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                AC3Init();
+                solver_AC3();
                 recursionLabel.setText("Recursions: " + recursions);
                 updateBoard();
             }
         });
         
-        heuristicButton.addActionListener(new ActionListener() {
+        mostConstrainedButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                most_constrained_solver();
+                solver_MostConstrained();
+                recursionLabel.setText("Recursions: " + recursions);
+                updateBoard();
+            }
+        });
+
+        leastConstrainingButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                solver_LeastConstraining();
                 recursionLabel.setText("Recursions: " + recursions);
                 updateBoard();
             }
@@ -723,7 +847,8 @@ public class KenKenPlayer
         });
 
         buttonPanel.add(ac3Button);
-        buttonPanel.add(heuristicButton);
+        buttonPanel.add(mostConstrainedButton);
+        buttonPanel.add(leastConstrainingButton);
         buttonPanel.add(clearButton);
         buttonPanel.add(recursionLabel);
 
