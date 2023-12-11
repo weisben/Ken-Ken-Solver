@@ -98,7 +98,7 @@ public class KenKenPlayer
         
 
         // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrackLeastConstrainingValue(0, globalDomains);
+        boolean success = backtrackLeastConstrainingValue(globalDomains);
 
         // Prints evaluation of run
 
@@ -418,30 +418,25 @@ public class KenKenPlayer
             return true;
         }
 
-        // make a copy of domains so we don't modify global domains
         ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
         for (int i = 0; i < NUM_CELLS; i++) {
             domain_copy[i] = new ArrayList<>(Domains[i]);
         }
         
-        // checks if previous cell assignment is consistent
         if (!AC3(domain_copy)) { // AC3 found an empty domain
             return false; // backtrack and find another value
         } 
 
-        // copy of cell's domain to be iterated through
         ArrayList<Integer> domain_values = new ArrayList<Integer>();
         for(int val : domain_copy[cell]){
             domain_values.add(val);
         }
 
-        // find a value for this cell
         for (int value : domain_values) {
             // assign a value to current cell
             domain_copy[cell].clear();
             domain_copy[cell].add(value);
 
-            // check if value works by recursively calling backtrack on next cell
             boolean consistent = backtrackMostConstrainedVariable(domain_copy);
 
             // if backtrack returns true, then all cells have worked, so assign the value
@@ -452,7 +447,7 @@ public class KenKenPlayer
         return false;
     }
 
-    // finds and returns the cell with the most constrained domain 
+    /* finds and returns the cell with the most constrained domain */
     private final int findMostConstrained(ArrayList<Integer>[] Domains){
 
         int smallest_domain_size = PUZZLE_SIZE + 1 ; // domain size will never exceed board size
@@ -482,17 +477,10 @@ public class KenKenPlayer
     }
 
     /* Least Constraining Value Heuristic */
-    private final boolean backtrackLeastConstrainingValue(int cell, ArrayList<Integer>[] Domains) {
+    private final boolean backtrackLeastConstrainingValue(ArrayList<Integer>[] Domains) {
         recursions++;
 
-        // uncomment this if you want to test without mcv heuristic
-        // 
-        // if (cell >= NUM_CELLS){ // found a solution for the board
-        //     return true;
-        // }
-
-        // uncomment this if you want to test with combining mcv heuristic 
-        cell = findMostConstrained(Domains); 
+       int cell = findMostConstrained(Domains); 
 
         // solution is found
         if (cell == -1){
@@ -500,18 +488,15 @@ public class KenKenPlayer
             return true;
         }
 
-        // make a copy of domains so we don't modify global domains
         ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
         for (int i = 0; i < NUM_CELLS; i++) {
             domain_copy[i] = new ArrayList<>(Domains[i]);
         }
         
-        // checks if previous cell assignment is consistent
         if (!AC3(domain_copy)) { // AC3 found an empty domain
             return false; // backtrack and find another value
         } 
 
-        // copy of cell's domain to be iterated through
         ArrayList<Integer> domain_values = new ArrayList<Integer>();
         for(int val : domain_copy[cell]){
             domain_values.add(val);
@@ -520,16 +505,12 @@ public class KenKenPlayer
         // sorts the domain by least constraining value
         ArrayList<Integer> domain_LCV = sortDomainByLCV(cell, new ArrayList<>(domain_copy[cell]), domain_copy);
 
-        // find a value for this cell
         for (int value : domain_LCV) {
-            // assign a value to current cell
             domain_copy[cell].clear();
             domain_copy[cell].add(value);
 
-            // check if value works by recursively calling backtrack on next cell
-            boolean consistent = backtrackLeastConstrainingValue(cell + 1, domain_copy);
+            boolean consistent = backtrackLeastConstrainingValue(domain_copy);
 
-            // if backtrack returns true, then all cells have worked, so assign the value
             if (consistent){
                 vals[cell] = value; 
                 return true;
@@ -548,9 +529,7 @@ public class KenKenPlayer
         return domainValues;
     }
 
-    /* finds the least constraining value by calculating the number of times
-     * it appears in a neighbor's cell
-     */
+    /* finds the least constraining value by calculating the number of times it appears in a neighbor's cell*/
     private int findLeastConstrainingValue(int cell, int value, ArrayList<Integer>[] Domains) {
         int frequency = 0;
         for (int neighbor : neighbors[cell]) {
@@ -746,7 +725,7 @@ public class KenKenPlayer
                 regions.add(new Arithmetic(168, '*', new ArrayList<Integer>(Arrays.asList(50,51,58))));
                 regions.add(new Arithmetic(5, '-', new ArrayList<Integer>(Arrays.asList(52,53))));
                 regions.add(new Arithmetic(120, '*', new ArrayList<Integer>(Arrays.asList(54,55,62,63))));
-                regions.add(new Arithmetic(13, '*', new ArrayList<Integer>(Arrays.asList(59,60,61))));
+                regions.add(new Arithmetic(13, '+', new ArrayList<Integer>(Arrays.asList(59,60,61))));
 
                 break;
             case "9x9":
@@ -807,7 +786,7 @@ public class KenKenPlayer
     public static void main(String[] args) {
 
         Scanner scan = new Scanner(System.in);
-        System.out.println("difficulty? \t3x3 (3), 4x4 (4), 5x5 (5), 6x6 (6), 7x7 (7), 8x8 (8), 9x9 (9)");
+        System.out.println("board size? \t3x3 - 4x4 - 5x5 - 6x6 - 7x7 - 8x8 - 9x9 ");
 
         char choice = scan.nextLine().charAt(0);
 
