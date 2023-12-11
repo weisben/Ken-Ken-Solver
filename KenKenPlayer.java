@@ -1,7 +1,6 @@
 import javax.swing.*;
-import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
-import javax.swing.plaf.ColorUIResource;
+
 
 import java.awt.*;
 import java.awt.event.*;
@@ -10,20 +9,11 @@ import java.util.Queue;
 
 public class KenKenPlayer
 {
-    //private final String difficulty = "3x3";
-    //private String difficulty;
-
     private int PUZZLE_SIZE;
     private int NUM_CELLS;
 
     int recursions;
-    int[] vals;
-    
-    //Board board = null;
-
-
-    /// --- AC-3 Constraint Satisfication --- ///
-   
+    int[] vals;   
 
     ArrayList<Integer>[] globalDomains;
     ArrayList<Integer>[] neighbors;
@@ -888,8 +878,6 @@ public class KenKenPlayer
         
         GUI gui = new GUI();
         gui.initVals();
-
-        //solver_AC3();
     }
 
     public static void main(String[] args) {
@@ -930,7 +918,7 @@ public class KenKenPlayer
         CellPanel[][] cellPanels;
         JPanel gamePanel, buttonPanel;
         JLabel recursionLabel;
-        JButton ac3Button, mostConstrainedButton, leastConstrainingButton, clearButton;
+        JButton forwardCheckingButton, ac3Button, mostConstrainedButton, leastConstrainingButton, clearButton;
         // Assuming a maximum puzzle size for color array initialization
         Color[] regionColors = new Color[PUZZLE_SIZE * PUZZLE_SIZE]; 
 
@@ -957,6 +945,7 @@ public class KenKenPlayer
 
         // Button panel
         buttonPanel = new JPanel();
+        forwardCheckingButton = new JButton("Forward Checking");
         ac3Button = new JButton("AC3");
         mostConstrainedButton = new JButton("Most Constrained Variable");
         leastConstrainingButton = new JButton("Least Constraining Value");
@@ -964,6 +953,14 @@ public class KenKenPlayer
         recursionLabel = new JLabel("Recursions: ");
         
         // action listeners for buttons
+        forwardCheckingButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                solver_forwardChecking();
+                recursionLabel.setText("Recursions: " + recursions);
+                updateBoard();
+            }
+        });
+
         ac3Button.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 solver_AC3();
@@ -994,6 +991,7 @@ public class KenKenPlayer
             }
         });
 
+        buttonPanel.add(forwardCheckingButton);
         buttonPanel.add(ac3Button);
         buttonPanel.add(mostConstrainedButton);
         buttonPanel.add(leastConstrainingButton);
