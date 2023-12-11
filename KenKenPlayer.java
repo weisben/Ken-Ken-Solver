@@ -35,88 +35,36 @@ public class KenKenPlayer
     /*
      * SOLVERS
      */
-    private final void solver_AC3(){
-        // board.Clear();
-		recursions = 0; 
+    private final void solver(String method){
+        recursions = 0; 
 
         initGlobalDomains(); // initialize domains for each cell
 
         allDiff(); // initializes neighbors and globalQueue   
         
+        boolean success = false;
 
-        // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrack_AC3(0, globalDomains);
-
-        // Prints evaluation of run
-
-        /*
-         * sets final board values in vals
-         */
-        Finished(success);
-
-    }
-
-    private final void solver_forwardChecking(){
-		recursions = 0; 
-
-        initGlobalDomains(); // initialize domains for each cell
-
-        allDiff(); // initializes neighbors and globalQueue   
-        
-
-        // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrackForwardChecking(0, globalDomains);
-
-        // Prints evaluation of run
+        switch(method){
+            case "FC":
+                success = backtrackForwardChecking(0, globalDomains);
+                break;
+            case "AC3":
+                success = backtrackAC3(0, globalDomains);
+                break;
+            case "MCV":
+                success = backtrackMostConstrainedVariable(globalDomains);
+                break;
+            case "LCV":
+                success = backtrackLeastConstrainingValue(globalDomains);
+                break;
+            default:
+                System.out.println("Invalid method");
+        }
 
         /*
          * sets final board values in vals
          */
-        Finished(success);
-
-    }
-
-    private final void solver_MostConstrained(){
-        // board.Clear();
-		recursions = 0; 
-
-        initGlobalDomains(); // initialize domains for each cell
-
-        allDiff(); // initializes neighbors and globalQueue   
-        
-
-        // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrackMostConstrainedVariable(globalDomains);
-
-        // Prints evaluation of run
-
-        /*
-         * sets final board values in vals
-         */
-        Finished(success);
-
-    }
-
-
-    private final void solver_LeastConstraining(){
-        // board.Clear();
-		recursions = 0; 
-
-        initGlobalDomains(); // initialize domains for each cell
-
-        allDiff(); // initializes neighbors and globalQueue   
-        
-
-        // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrackLeastConstrainingValue(globalDomains);
-
-        // Prints evaluation of run
-
-        /*
-         * sets final board values in vals
-         */
-        Finished(success);
-
+        Finished(success, method);
     }
 
     /*
@@ -190,10 +138,12 @@ public class KenKenPlayer
         }
     }
 
+    /*
+     * Backtracking algorithms
+     */
     
-
-    
-    private final boolean backtrack_AC3(int cell, ArrayList<Integer>[] Domains) {
+    /* Backtracking algorithm with AC3 */
+    private final boolean backtrackAC3(int cell, ArrayList<Integer>[] Domains) {
 
         recursions++;
         if (cell >= NUM_CELLS){ // found a solution for the board
@@ -224,7 +174,7 @@ public class KenKenPlayer
             domain_copy[cell].add(value);
 
             // check if value works by recursively calling backtrack on next cell
-            boolean consistent = backtrack_AC3(cell + 1, domain_copy);
+            boolean consistent = backtrackAC3(cell + 1, domain_copy);
 
             // if backtrack returns true, then all cells have worked, so assign the value
             if (consistent){
@@ -235,6 +185,7 @@ public class KenKenPlayer
         return false;
     }
 
+    /* Backtracking algorithm with forward checking */
     private final boolean backtrackForwardChecking(int cell, ArrayList<Integer>[] Domains) {
         recursions++;
         if (cell >= NUM_CELLS){ // found a solution for the board
@@ -271,6 +222,7 @@ public class KenKenPlayer
         return false;
     }
 
+    // Checks if an assignment to a cell has any immediate inconsistencies
     private final boolean forwardCheck(int cell, ArrayList<Integer>[] Domains){
         ArrayList<Arc> arcs = getArcs(cell);
         for(Arc a: arcs){
@@ -279,227 +231,6 @@ public class KenKenPlayer
         return true;
     }
 
-    private final boolean AC3(ArrayList<Integer>[] Domains) {
-        // copy queue, initially all the arcs in csp
-        Queue<Arc> Q = new LinkedList<Arc>();
-        for(Arc a : globalQueue){
-            Q.add(a);
-        }
-        
-        // iterate through queue until there are no more arcs to revise over
-        while(!Q.isEmpty()){
-            Arc current_arc = Q.poll();
-
-            boolean revised = Revise(current_arc, Domains);
-                
-            if(!revised) continue; // if the domain wasn't revised move to the next arc
-            if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
-                return false;
-            }
-            
-            //add arcs
-            ArrayList<Arc> new_arcs = new ArrayList<Arc>();
-            for(int n: neighbors[current_arc.cell]){
-                if(current_arc.constraintType == "math" || current_arc.neighbors.get(0)!=n)
-                new_arcs.add(new Arc(n, current_arc.cell));
-            }
-
-            for(Arc new_arc: new_arcs){
-                if(!Q.contains(new_arc)){
-                    Q.add(new_arc);
-                }
-            }
-        }
-        
-		return true;
-    }
-
-    private final boolean Revise(Arc t, ArrayList<Integer>[] Domains){
-        if(t.constraintType == "diff"){
-            return ReviseDiff(t, Domains);
-        } else {
-            return ReviseMath(t, Domains);
-        }
-    }
-
-    private final boolean ReviseDiff(Arc t, ArrayList<Integer>[] Domains){
-        // extract endpoints of arc
-        int Xi = t.cell;
-        int Xj = t.neighbors.get(0);
-
-        // Domain of Xi needs to be revised only if the domain of Xj is a
-        // singular value which is contained in the domain of Xi
-        if(Domains[Xj].size() == 1 && Domains[Xi].contains(Domains[Xj].get(0))){
-            Domains[Xi].remove(Domains[Xj].get(0));
-            return true; 
-        } else {
-            return false;
-        }       
- 	}
-
-    private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
-        switch(t.operator){
-            case '+':
-                return ReviseAdd(t, Domains);
-            case '-':
-                return ReviseSub(t, Domains);
-            case '*':
-                return ReviseMul(t, Domains);
-            case '/':
-                return ReviseDiv(t, Domains);
-            default:
-                System.out.println("Invalid operator");
-                return false;
-        }
-    }
-
-    private final boolean ReviseAdd(Arc t, ArrayList<Integer>[] Domains){
-        boolean revised = false;
-
-        ArrayList<Integer> dom = Domains[t.cell];
-
-        int min_sum = 0;
-        int max_sum = 0;
-        for(int i: t.neighbors){
-            min_sum += min(Domains[i]);
-            max_sum += max(Domains[i]);
-        }
-
-        for(int i=0; i<dom.size(); i++){
-            if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
-                dom.remove(i);
-                revised = true;
-            }
-        }
-
-        return revised;
-    }
-
-    private final boolean ReviseSub(Arc t, ArrayList<Integer>[] Domains){
-        boolean revised = false;
-
-        ArrayList<Integer> dom = Domains[t.cell];
-        int neighbor = t.neighbors.get(0);
-        ArrayList<Integer> neighborDom = Domains[neighbor];
-
-        for(int i=0; i<dom.size(); i++){
-            int val1 = dom.get(i);
-            boolean works = false;
-            for(int j=0; j<neighborDom.size(); j++){
-                int val2 = neighborDom.get(j);
-                if(Math.abs(val1 - val2) == t.target){
-                    works = true;
-                }
-            }
-            if(!works){
-                dom.remove(i);
-                revised = true;
-            }
-        }
-
-        return revised;
-    }
-
-    private final boolean ReviseMul(Arc t, ArrayList<Integer>[] Domains){
-        boolean revised = false;
-
-        ArrayList<Integer> dom = Domains[t.cell];
-
-        int min_prod = 1;
-        int max_prod = 1;
-        for(int i: t.neighbors){
-            min_prod *= min(Domains[i]);
-            max_prod *= max(Domains[i]);
-        }
-        for(int i=0; i<dom.size(); i++){
-            int val = dom.get(i);
-            if(t.target % val != 0 || val * min_prod > t.target || val * max_prod < t.target){
-                dom.remove(i);
-                revised = true;
-            }
-        }
-
-        return revised;
-    }
-
-    private final boolean ReviseDiv(Arc t, ArrayList<Integer>[] Domains){
-        boolean revised = false;
-
-        ArrayList<Integer> dom = Domains[t.cell];
-        int neighbor = t.neighbors.get(0);
-        ArrayList<Integer> neighborDom = Domains[neighbor];
-        for(int i=0; i<dom.size(); i++){
-            int val1 = dom.get(i);
-            boolean works = false;
-            for(int j=0; j<neighborDom.size(); j++){
-                int val2 = neighborDom.get(j);
-                if(val1 / val2 == t.target || val2 / val1 == t.target){
-                    works = true;
-                }
-            }
-            if(!works){
-                dom.remove(i);
-                revised = true;
-            }
-        }
-
-        return revised;
-    }
-
-    private int min(ArrayList<Integer> L){
-        // int min_index = -1;
-        int min_value = PUZZLE_SIZE;
-        for(int i=0; i<L.size(); i++){
-            if(L.get(i) < min_value){
-                min_value = L.get(i);
-                // min_index = i;
-            }
-        }  
-        return min_value; 
-    }
-
-    private int max(ArrayList<Integer> L){
-        // int max_index = -1;
-        int max_value = 0;
-        for(int i=0; i<L.size(); i++){
-            if(L.get(i) > max_value){
-                max_value = L.get(i);
-                // max_index = i;
-            }
-        }  
-        return max_value; 
-    }
-
-    //forward checking
-    private ArrayList<Arc> getArcs(int cell){
-        ArrayList<Arc> arcs = new ArrayList<Arc>();
-
-        //add row/column neighbors
-        for(int neighbor: neighbors[cell]){
-            arcs.add(new Arc(cell, neighbor));
-        }
-
-        //add cage arc
-        for(Arithmetic cage: regions){
-            if(cage.operator == '#') continue;
-            if(cage.cells.contains(cell)){
-                ArrayList<Integer> neighbors = new ArrayList<Integer>();
-                for(int j: cage.cells){
-                    if(j != cell) neighbors.add(j);
-                }
-                arcs.add(new Arc(cell, neighbors, cage.target, cage.operator));
-            }
-        }
-
-        return arcs;
-    }
-
-
-
-
-    /*
-     * HEURISTICS
-     */
 
      /* Most Constrained Variable Heuristic */
     private final boolean backtrackMostConstrainedVariable(ArrayList<Integer>[] Domains) {
@@ -561,15 +292,6 @@ public class KenKenPlayer
         return most_constrained_variable;
     }
 
-    /**
-     * Called when all variables have a domain of 1
-     * Assigns all variables to their singular available value
-     */
-    private void finalAssignment(ArrayList<Integer>[] Domains){
-        for(int cell = 0; cell < PUZZLE_SIZE*PUZZLE_SIZE; cell++){
-            vals[cell] = Domains[cell].get(0); 
-        }
-    }
 
     /* Least Constraining Value Heuristic */
     private final boolean backtrackLeastConstrainingValue(ArrayList<Integer>[] Domains) {
@@ -635,20 +357,282 @@ public class KenKenPlayer
         return frequency;
     }
 
+
+    
+
     /*
-     * GUI AND CLASSES
+     * AC3 algorithm and utilities
      */
 
-    private void Finished(boolean success){
+    /**
+     * AC3 algorithm
+     * Given domains of all variables, use the global constraints to look for inconsistencies
+     * @param Domains: Array of domains of all cells
+     * @return
+     */
+    private final boolean AC3(ArrayList<Integer>[] Domains) {
+        // copy queue, initially all the arcs in csp
+        Queue<Arc> Q = new LinkedList<Arc>();
+        for(Arc a : globalQueue){
+            Q.add(a);
+        }
+        
+        // iterate through queue until there are no more arcs to revise over
+        while(!Q.isEmpty()){
+            Arc current_arc = Q.poll();
+
+            boolean revised = Revise(current_arc, Domains);
+                
+            if(!revised) continue; // if the domain wasn't revised move to the next arc
+            if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
+                return false;
+            }
+            
+            //add arcs
+            ArrayList<Arc> new_arcs = new ArrayList<Arc>();
+            for(int n: neighbors[current_arc.cell]){
+                if(current_arc.constraintType == "math" || current_arc.neighbors.get(0)!=n)
+                new_arcs.add(new Arc(n, current_arc.cell));
+            }
+
+            for(Arc new_arc: new_arcs){
+                if(!Q.contains(new_arc)){
+                    Q.add(new_arc);
+                }
+            }
+        }
+        
+		return true;
+    }
+
+
+    // General method for revising arcs
+    private final boolean Revise(Arc t, ArrayList<Integer>[] Domains){
+        if(t.constraintType == "diff"){
+            return ReviseDiff(t, Domains);
+        } else {
+            return ReviseMath(t, Domains);
+        }
+    }
+
+    // Method for revising diff arcs
+    private final boolean ReviseDiff(Arc t, ArrayList<Integer>[] Domains){
+        // extract endpoints of arc
+        int Xi = t.cell;
+        int Xj = t.neighbors.get(0);
+
+        // Domain of Xi needs to be revised only if the domain of Xj is a
+        // singular value which is contained in the domain of Xi
+        if(Domains[Xj].size() == 1 && Domains[Xi].contains(Domains[Xj].get(0))){
+            Domains[Xi].remove(Domains[Xj].get(0));
+            return true; 
+        } else {
+            return false;
+        }       
+ 	}
+
+    // General method for revising math arcs
+    private final boolean ReviseMath(Arc t, ArrayList<Integer>[] Domains){
+        switch(t.operator){
+            case '+':
+                return ReviseAdd(t, Domains);
+            case '-':
+                return ReviseSub(t, Domains);
+            case '*':
+                return ReviseMul(t, Domains);
+            case '/':
+                return ReviseDiv(t, Domains);
+            default:
+                System.out.println("Invalid operator");
+                return false;
+        }
+    }
+
+    // Method for revising addition arcs
+    private final boolean ReviseAdd(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+
+        // Calculate maximum and minimum sums of neighbor domains
+        int min_sum = 0;
+        int max_sum = 0;
+        for(int i: t.neighbors){
+            min_sum += min(Domains[i]);
+            max_sum += max(Domains[i]);
+        }
+
+        //Remove a value if it does not fit in the bounds defined by the max and min
+        for(int i=0; i<dom.size(); i++){
+            if(dom.get(i) + min_sum > t.target || dom.get(i) + max_sum < t.target){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    // Method for revising subtraction arcs
+    private final boolean ReviseSub(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+        int neighbor = t.neighbors.get(0);
+        ArrayList<Integer> neighborDom = Domains[neighbor];
+
+        // For each value in cell's domain check if there is a value
+        // in neighbor's domain that can be subtracted to get target
+        for(int i=0; i<dom.size(); i++){
+            int val1 = dom.get(i);
+            boolean works = false;
+            for(int j=0; j<neighborDom.size(); j++){
+                int val2 = neighborDom.get(j);
+                if(Math.abs(val1 - val2) == t.target){
+                    works = true;
+                }
+            }
+            if(!works){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    // Method for revising multiplication arcs
+    private final boolean ReviseMul(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+
+        // Calculate maximum and minimum products of neighbor domains
+        int min_prod = 1;
+        int max_prod = 1;
+        for(int i: t.neighbors){
+            min_prod *= min(Domains[i]);
+            max_prod *= max(Domains[i]);
+        }
+
+        //Remove a value if it does not fit in the bounds defined by the max and min
+        for(int i=0; i<dom.size(); i++){
+            int val = dom.get(i);
+            if(t.target % val != 0 || val * min_prod > t.target || val * max_prod < t.target){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    // Method for revising division arcs
+    private final boolean ReviseDiv(Arc t, ArrayList<Integer>[] Domains){
+        boolean revised = false;
+
+        ArrayList<Integer> dom = Domains[t.cell];
+        int neighbor = t.neighbors.get(0);
+        ArrayList<Integer> neighborDom = Domains[neighbor];
+
+        // For each value in cell's domain check if there is a value
+        // in neighbor's domain that can be divided to get target
+        for(int i=0; i<dom.size(); i++){
+            int val1 = dom.get(i);
+            boolean works = false;
+            for(int j=0; j<neighborDom.size(); j++){
+                int val2 = neighborDom.get(j);
+                if(val1 / val2 == t.target || val2 / val1 == t.target){
+                    works = true;
+                }
+            }
+            if(!works){
+                dom.remove(i);
+                revised = true;
+            }
+        }
+
+        return revised;
+    }
+
+    // Helper method for finding the minimum value of an ArrayList of integers
+    private int min(ArrayList<Integer> L){
+        // int min_index = -1;
+        int min_value = PUZZLE_SIZE;
+        for(int i=0; i<L.size(); i++){
+            if(L.get(i) < min_value){
+                min_value = L.get(i);
+                // min_index = i;
+            }
+        }  
+        return min_value; 
+    }
+
+    // Helper method for finding the maximum value of an ArrayList of integers
+    private int max(ArrayList<Integer> L){
+        // int max_index = -1;
+        int max_value = 0;
+        for(int i=0; i<L.size(); i++){
+            if(L.get(i) > max_value){
+                max_value = L.get(i);
+                // max_index = i;
+            }
+        }  
+        return max_value; 
+    }
+
+    //Helper function for finding all arcs that originate from a specified cell
+    private ArrayList<Arc> getArcs(int cell){
+        ArrayList<Arc> arcs = new ArrayList<Arc>();
+
+        //add row/column neighbors
+        for(int neighbor: neighbors[cell]){
+            arcs.add(new Arc(cell, neighbor));
+        }
+
+        //add cage arc
+        for(Arithmetic cage: regions){
+            if(cage.operator == '#') continue;
+            if(cage.cells.contains(cell)){
+                ArrayList<Integer> neighbors = new ArrayList<Integer>();
+                for(int j: cage.cells){
+                    if(j != cell) neighbors.add(j);
+                }
+                arcs.add(new Arc(cell, neighbors, cage.target, cage.operator));
+            }
+        }
+
+        return arcs;
+    }
+
+
+    /**
+     * Called when all variables have a domain of 1
+     * Assigns all variables to their singular available value
+     */
+    private void finalAssignment(ArrayList<Integer>[] Domains){
+        for(int cell = 0; cell < PUZZLE_SIZE*PUZZLE_SIZE; cell++){
+            vals[cell] = Domains[cell].get(0); 
+        }
+    }
+
+    /*
+     * Prints out summary of run
+     */
+    private void Finished(boolean success, String method){
     	
     	if(success){
+            System.out.println("----------\nSolved board:");
             printBoard();
         } else {
             System.out.println("Failed");
         }
-        System.out.println("Recursions: "+recursions);
+        System.out.println("Method: "+method+"\nRecursions: "+recursions+"\n----------");
     }
 
+    /*
+     * Prints out values in board
+     */
     private void printBoard(){
         for(int i=0; i<PUZZLE_SIZE; i++){
             for(int j=0; j<PUZZLE_SIZE; j++){
@@ -659,6 +643,14 @@ public class KenKenPlayer
         }
     }
 
+    /**
+     * CLASSES
+     */
+
+    /**
+     * Class for defining arithmetic cages that make up a puzzle
+     * Used for encoding puzzles
+     */
     class Arithmetic {
         int target;
         char operator;
@@ -677,6 +669,10 @@ public class KenKenPlayer
         }
     }
 
+    /**
+     * Class for defining arcs for AC3
+     * Two types of arcs - two constructors
+     */
     class Arc implements Comparable<Object>{
         int cell;
         ArrayList<Integer> neighbors;
@@ -684,20 +680,14 @@ public class KenKenPlayer
         char operator;
         String constraintType;
 
+        //Constructor for diff arcs
         public Arc(int cell_i, int cell_j){
-            if (cell_i == cell_j){
-                try {
-                    throw new Exception(cell_i+ "=" + cell_j);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
-            }
             this.cell = cell_i;
             this.neighbors = new ArrayList<Integer>(Arrays.asList(cell_j));
             constraintType = "diff";
         }
 
+        //Constructor for math arcs
         public Arc(int cell, ArrayList<Integer> neighbors, int target, char operator){
             this.target = target;
             this.operator = operator;
@@ -719,9 +709,10 @@ public class KenKenPlayer
         }
     }
 
-    public final void initialize(String difficulty){    
+    public final void createPuzzle(String difficulty){    
         
         // CREATE BOARD
+        // Manual encodings of expert boards taken from KenKen website: www.kenkenpuzzle.com/
         switch(difficulty){
             case "3x3":
                 setPuzzleSize(3);
@@ -874,7 +865,7 @@ public class KenKenPlayer
     
 
     public void run(String difficulty){
-        initialize(difficulty);
+        createPuzzle(difficulty);
         
         GUI gui = new GUI();
         gui.initVals();
@@ -889,29 +880,39 @@ public class KenKenPlayer
 
         KenKenPlayer app = new KenKenPlayer();
 
-        if (choice == '3'){
-            app.run("3x3");
+        switch(choice){
+            case '3':
+                app.run("3x3");
+                break;
+            case '4':
+                app.run("4x4");
+                break;
+            case '5':
+                app.run("5x5");
+                break;
+            case '6':
+                app.run("6x6");
+                break;
+            case '7':
+                app.run("7x7");
+                break;
+            case '8':
+                app.run("8x8");
+                break;
+            case '9':
+                app.run("9x9");
+                break;
+            default:
+                System.out.println("Invalid difficulty");
         }
-        if (choice == '4'){
-            app.run("4x4");
-        }
-        if (choice == '5'){
-            app.run("5x5");
-        }
-        if (choice == '6'){
-            app.run("6x6");
-        }
-        if (choice == '7'){
-            app.run("7x7");
-        }
-        if (choice == '8'){
-            app.run("8x8");
-        }
-        if (choice == '9'){
-            app.run("9x9");
-        }
+
         scan.close();
     }
+
+
+    /**
+     * GUI
+     */
 
     class GUI {
         JFrame mainFrame;
@@ -955,7 +956,7 @@ public class KenKenPlayer
         // action listeners for buttons
         forwardCheckingButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                solver_forwardChecking();
+                solver("FC");
                 recursionLabel.setText("Recursions: " + recursions);
                 updateBoard();
             }
@@ -963,7 +964,7 @@ public class KenKenPlayer
 
         ac3Button.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                solver_AC3();
+                solver("AC3");
                 recursionLabel.setText("Recursions: " + recursions);
                 updateBoard();
             }
@@ -971,7 +972,7 @@ public class KenKenPlayer
         
         mostConstrainedButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                solver_MostConstrained();
+                solver("MCV");
                 recursionLabel.setText("Recursions: " + recursions);
                 updateBoard();
             }
@@ -979,7 +980,7 @@ public class KenKenPlayer
 
         leastConstrainingButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                solver_LeastConstraining();
+                solver("LCV");
                 recursionLabel.setText("Recursions: " + recursions);
                 updateBoard();
             }
