@@ -309,23 +309,12 @@ public class KenKenPlayer
             //add arcs
             ArrayList<Arc> new_arcs = new ArrayList<Arc>();
             for(int n: neighbors[current_arc.cell]){
-                new_arcs.addAll(getArcs(n));
+                if(current_arc.constraintType == "math" || current_arc.neighbors.get(0)!=n)
+                new_arcs.add(new Arc(n, current_arc.cell));
             }
 
-            // System.out.println("Current Queue: " +Q);
-
             for(Arc new_arc: new_arcs){
-                boolean inQ = false;
-                // check if the arc is already in queue
-                for(Arc a : Q){ 
-                    if(a.compareTo(new_arc) == 0) {
-                        // System.out.println(a + " is in Q");
-                        inQ = true;
-                        break;
-                    }
-                }
-                if (!inQ){ //add the arc if it was not already in the queue
-                    // System.out.println("Adding "+new_arc+ " to Q");;
+                if(!Q.contains(new_arc)){
                     Q.add(new_arc);
                 }
             }
@@ -753,6 +742,10 @@ public class KenKenPlayer
 
         public String toString(){
             return "(" + cell + "->" + neighbors + ", "+ operator + target + ")";
+        }
+
+        public boolean equals(Object o){
+            return this.compareTo(o) == 0;
         }
     }
 
