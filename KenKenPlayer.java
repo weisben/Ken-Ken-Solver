@@ -55,7 +55,27 @@ public class KenKenPlayer
         
 
         // Initial call to backtrack() on cell 0 (top left)
-        boolean success = backtrack(0, globalDomains);
+        boolean success = backtrack_AC3(0, globalDomains);
+
+        // Prints evaluation of run
+
+        /*
+         * sets final board values in vals
+         */
+        Finished(success);
+
+    }
+
+    private final void solver_forwardChecking(){
+		recursions = 0; 
+
+        initGlobalDomains(); // initialize domains for each cell
+
+        allDiff(); // initializes neighbors and globalQueue   
+        
+
+        // Initial call to backtrack() on cell 0 (top left)
+        boolean success = backtrackForwardChecking(0, globalDomains);
 
         // Prints evaluation of run
 
@@ -181,7 +201,10 @@ public class KenKenPlayer
     }
 
     
-    private final boolean backtrack(int cell, ArrayList<Integer>[] Domains) {
+
+    
+    private final boolean backtrack_AC3(int cell, ArrayList<Integer>[] Domains) {
+
         recursions++;
         if (cell >= NUM_CELLS){ // found a solution for the board
             return true;
@@ -211,7 +234,7 @@ public class KenKenPlayer
             domain_copy[cell].add(value);
 
             // check if value works by recursively calling backtrack on next cell
-            boolean consistent = backtrack(cell + 1, domain_copy);
+            boolean consistent = backtrack_AC3(cell + 1, domain_copy);
 
             // if backtrack returns true, then all cells have worked, so assign the value
             if (consistent){
@@ -222,7 +245,49 @@ public class KenKenPlayer
         return false;
     }
 
-    
+    private final boolean backtrackForwardChecking(int cell, ArrayList<Integer>[] Domains) {
+        recursions++;
+        if (cell >= NUM_CELLS){ // found a solution for the board
+            return true;
+        }
+
+        // make a copy of domains so we don't modify global domains
+        ArrayList<Integer>[] domain_copy = new ArrayList[NUM_CELLS];
+        for (int i = 0; i < NUM_CELLS; i++) {
+            domain_copy[i] = new ArrayList<>(Domains[i]);
+        }
+
+        // copy of cell's domain to be iterated through
+        ArrayList<Integer> domain_values = new ArrayList<Integer>();
+        for(int val : domain_copy[cell]){
+            domain_values.add(val);
+        }
+
+        // find a value for this cell
+        for (int value : domain_values) {
+            // assign a value to current cell
+            domain_copy[cell].clear();
+            domain_copy[cell].add(value);
+
+            // check if value works by recursively calling backtrack on next cell
+            boolean consistent = forwardCheck(cell, domain_copy) && backtrackForwardChecking(cell + 1, domain_copy);
+
+            // if backtrack returns true, then all cells have worked, so assign the value
+            if (consistent){
+                vals[cell] = value; 
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private final boolean forwardCheck(int cell, ArrayList<Integer>[] Domains){
+        ArrayList<Arc> arcs = getArcs(cell);
+        for(Arc a: arcs){
+            if(Revise(a, Domains)) return false;
+        }
+        return true;
+    }
 
     private final boolean AC3(ArrayList<Integer>[] Domains) {
         // copy queue, initially all the arcs in csp
@@ -240,7 +305,20 @@ public class KenKenPlayer
             if(!revised) continue; // if the domain wasn't revised move to the next arc
             if (Domains[current_arc.cell].isEmpty()){ // an inconsistency was found
                 return false;
-            } 
+            }
+            
+            //add arcs
+            ArrayList<Arc> new_arcs = new ArrayList<Arc>();
+            for(int n: neighbors[current_arc.cell]){
+                if(current_arc.constraintType == "math" || current_arc.neighbors.get(0)!=n)
+                new_arcs.add(new Arc(n, current_arc.cell));
+            }
+
+            for(Arc new_arc: new_arcs){
+                if(!Q.contains(new_arc)){
+                    Q.add(new_arc);
+                }
+            }
         }
         
 		return true;
@@ -401,6 +479,33 @@ public class KenKenPlayer
         }  
         return max_value; 
     }
+
+    //forward checking
+    private ArrayList<Arc> getArcs(int cell){
+        ArrayList<Arc> arcs = new ArrayList<Arc>();
+
+        //add row/column neighbors
+        for(int neighbor: neighbors[cell]){
+            arcs.add(new Arc(cell, neighbor));
+        }
+
+        //add cage arc
+        for(Arithmetic cage: regions){
+            if(cage.operator == '#') continue;
+            if(cage.cells.contains(cell)){
+                ArrayList<Integer> neighbors = new ArrayList<Integer>();
+                for(int j: cage.cells){
+                    if(j != cell) neighbors.add(j);
+                }
+                arcs.add(new Arc(cell, neighbors, cage.target, cage.operator));
+            }
+        }
+
+        return arcs;
+    }
+
+
+
 
     /*
      * HEURISTICS
@@ -616,7 +721,11 @@ public class KenKenPlayer
         }
 
         public String toString(){
-            return "(" + cell + "->" + neighbors + ")";
+            return "(" + cell + "->" + neighbors + ", "+ operator + target + ")";
+        }
+
+        public boolean equals(Object o){
+            return this.compareTo(o) == 0;
         }
     }
 
@@ -776,7 +885,7 @@ public class KenKenPlayer
 
     public void run(String difficulty){
         initialize(difficulty);
-
+        
         GUI gui = new GUI();
         gui.initVals();
 
