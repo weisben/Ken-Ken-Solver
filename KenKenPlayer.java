@@ -358,7 +358,7 @@ public class KenKenPlayer
     }
 
 
-    
+
 
     /*
      * AC3 algorithm and utilities
@@ -388,16 +388,15 @@ public class KenKenPlayer
                 return false;
             }
             
-            //add arcs
-            ArrayList<Arc> new_arcs = new ArrayList<Arc>();
-            for(int n: neighbors[current_arc.cell]){
-                if(current_arc.constraintType == "math" || current_arc.neighbors.get(0)!=n)
-                new_arcs.add(new Arc(n, current_arc.cell));
-            }
-
-            for(Arc new_arc: new_arcs){
-                if(!Q.contains(new_arc)){
-                    Q.add(new_arc);
+            // If revised, add adjacent arcs back to queue
+            if(current_arc.constraintType == "diff") {
+                for(int n: neighbors[current_arc.cell]){
+                    if(current_arc.neighbors.get(0)!=n){
+                        Arc new_arc = new Arc(n, current_arc.cell);
+                        if(!Q.contains(new_arc)){
+                            Q.add(new_arc);
+                        }
+                    }
                 }
             }
         }
